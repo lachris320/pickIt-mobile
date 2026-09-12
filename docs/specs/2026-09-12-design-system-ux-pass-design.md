@@ -1,6 +1,6 @@
 # PickIt-mobile — Design-System & UX-Correctness Pass
 
-- **Status:** Approved (brainstorm) — codebase-validated in lieu of the automated gate (Codex not installed and the `claude -p` reviewer not logged in; feasibility claims validated directly against the codebase instead). Pending final user review.
+- **Status:** Approved (brainstorm) — passed the independent design-spec review gate (`/claude-review`, DESIGN-SPEC mode, **APPROVE**); all Important + Low findings folded in. Pending final user review.
 - **Date:** 2026-09-12
 - **Author:** Design OS EVALUATE → brainstorm
 - **Scope cycle:** A (this spec). B — "Court Call" / big-screen public-display mode — deferred to its own cycle.
@@ -34,7 +34,7 @@ Genuine strengths to preserve: strong feedback (haptics, animated scores, flash 
 **Non-goals (out of scope this cycle)**
 - The "Court Call" / big-screen public-display mode (next cycle).
 - Any layout restructure beyond emphasis/hierarchy (the "bolder restyle" option was declined).
-- Engine / ViewModel logic changes.
+- Engine / ViewModel logic changes — **with one narrowed exception**: `SessionViewModel.createInitialSession()` (`SessionViewModel.kt:67`) currently seeds a fake demo session (14 players + two in-progress fake matches) into Room on first launch, so the Hub opens on demo data. This pass changes first launch to start with **no active session** (see §7 → "First-launch boot state"). No other engine/ViewModel logic changes.
 - Material-You dynamic color (stays disabled).
 
 ## 3. Approach
@@ -48,7 +48,7 @@ New/updated in `ui/theme/`:
 - `LocalPickItTokens` — `staticCompositionLocalOf`.
 - `DarkTokens`, `LightTokens` — the two instances.
 - `ThemeMode { DARK, LIGHT, SYSTEM }`.
-- `MyApplicationTheme(themeMode: ThemeMode, content)` — resolves dark/light, provides tokens + `colorScheme` + `Typography`. The dead `darkTheme`/`dynamicColor` params are removed.
+- `MyApplicationTheme(themeMode: ThemeMode = ThemeMode.SYSTEM, content)` — resolves dark/light, provides tokens + `colorScheme` + `Typography`. The dead `darkTheme`/`dynamicColor` params are removed. **`themeMode` keeps a default value** so existing no-arg call sites don't break; `MainActivity` passes the real mode, and `GreetingScreenshotTest.kt:30` (which also calls it no-arg) continues to compile — screenshot tests pass an explicit mode per theme.
 
 **Entrypoint wiring (verified against `MainActivity.kt`).** Today `MainActivity.onCreate` calls `MyApplicationTheme { … }` with **no arguments** and wraps content in `Surface(color = CanvasDark)` (a hardcoded color). This pass:
 - Adds `themeMode: StateFlow<ThemeMode>` + a `setThemeMode(mode)` action to `SessionViewModel` (already an `AndroidViewModel(application)` — it has the `Application` for persistence and already exposes `StateFlow`s).
@@ -111,7 +111,7 @@ A documented ladder the whole app obeys:
 
 **Session Hub**
 - Section labels → quiet sentence-case eyebrows.
-- Only the **next** ready court gets the lime `Call & start`; additional ready courts list with neutral "Call" actions, so a single lime standout survives.
+- Only the **next** ready court gets the lime `Call & start`; additional ready courts list with neutral "Call" actions, so a single lime standout survives. **"Next" is defined as the lowest `courtId` among ready courts** (`activeRecommendations` is a `Map` rendered via `.values.toList()` at `SessionHubScreen.kt:126` — iteration order is not meaningful, so the Hub must sort by `courtId` before rendering). `RecommendationCard` gains an `isPrimary: Boolean` variant param: `true` → lime border + lime CTA (today's unconditional styling at `RecommendationCard.kt:38,257`); `false` → neutral border + neutral "Call" CTA.
 - Court cards lose full colored borders → neutral `surface` + subtle `border` + status dot (shape+label+color).
 - "Live score" / "Final score" → neutral secondary.
 - Standalone block demotes from a bordered surface to a quiet row/link.
@@ -138,8 +138,17 @@ A documented ladder the whole app obeys:
 - Court-count selection shows **checkmark + fill** (not color alone).
 - **The 12 hardcoded fake players and the pre-filled session name stop being live default state.** New flow: empty session → add players → optionally **Load sample players** → Launch session. The sample affordance keeps demo/testing convenience without contaminating real operational state.
 
+**StandaloneScoreboardScreen**
+- Also migrates off inline hex (e.g. `Color(0xFF141D17)`, `Color(0xFF0E282B)`, `Color(0xFF263300)`, `PickleballLime`, team colors) to tokens + type + the emphasis ladder. It is a first-class screen (listed in §1) and must be included so acceptance #3 holds.
+
+**Components (OnDeckHorizonBar, TacticalPickleballCourtDiagram)**
+- Both carry inline hex today and migrate to tokens + type as part of the same pass.
+
 **Sheets (FastFinalScore, QueueRoster)**
 - Tokens + type applied; `Confirm & rotate` lime primary; selected score pills use **fill + shape**, not color alone.
+
+**First-launch boot state**
+- `SessionViewModel.createInitialSession()` (`SessionViewModel.kt:67`) stops seeding a fake demo session; first launch starts with **no active session** so the app opens on Setup (or an empty-state Hub prompting "Start a session"). This is the narrowed ViewModel exception in §2 and the real fix for the recognition finding (the Setup form defaults in finding #7 were only the visible half).
 
 ## 8. Behavioral fixes (cross-cutting)
 
@@ -152,7 +161,7 @@ A documented ladder the whole app obeys:
 ## 9. Accessibility requirements
 
 Accessibility is part of the design, not a final compliance step:
-- 48dp minimum interactive target on every control.
+- 48dp minimum interactive target on every control. For the four dense rest-player icon buttons (`RecommendationCard.kt:114,134,167,187`), meet the target via **expanded touch bounds** (`Modifier.minimumInteractiveComponentSize()` / a larger clickable around a small icon), not by visually enlarging the 14dp icon — this keeps the two-column matchup row's layout intact (respects §2's no-restructure rule).
 - No information by color alone — status carries shape + label; selections carry a checkmark/fill.
 - Graceful behavior at large system font sizes (no clipping).
 - Contrast validated to WCAG AA for text roles in **both** palettes.
@@ -167,7 +176,11 @@ Accessibility is part of the design, not a final compliance step:
   - Setup starts with an empty roster; "Load sample players" populates it.
 - **Screenshot baselines (Roborazzi — already configured):** the repo already wires Roborazzi (`app/build.gradle.kts`: `roborazzi` plugin, `roborazzi.compose`, `roborazzi.junit.rule`) with an existing `app/src/test/java/com/example/GreetingScreenshotTest.kt` and a `app/src/test/screenshots/greeting.png` baseline. Follow that pattern: capture key screens (Hub, Live Scoreboard, Setup, both sheets) in **both dark and light**, verified in CI. No new screenshot dependency is needed.
 
-**Test-safety note (verified):** no existing test depends on Setup's 12 sample players. The `Alice`/`Bob` names in `PickleballEngineTest` and `RoomDatabaseTest` are independent fixtures, not the Setup UI state — so removing the sample roster as live default state (§7) breaks no current test.
+**Deterministic capture (required):** screenshot tests must render each screen with **injected fixed fixtures** (a pre-built `OpenPlaySession` / `Match`), **not** the live `SessionViewModel` — the VM loads asynchronously from Room in `init`, `waitForIdle()` won't reliably await that coroutine, and `SessionHubScreen` renders empty while `session == null` (`SessionHubScreen.kt:40`). Screens should be composable with data passed in (or a seam to inject a ready session) so baselines are stable across runs and both themes.
+
+**Baseline housekeeping:** `GreetingScreenshotTest.kt:39` actually captures `app_home.png`, while the committed `greeting.png` is orphaned — remove the stale file when regenerating and document the Roborazzi record-vs-verify workflow so CI baseline churn is intentional.
+
+**Test-safety note (verified):** no existing test depends on Setup's sample players. The `Alice`/`Bob` names in `PickleballEngineTest` and `RoomDatabaseTest` are independent fixtures, not the Setup UI state — so removing the sample roster as live default state (§7) breaks no current test.
 
 ## 11. Acceptance criteria (mapped to findings)
 
@@ -177,6 +190,7 @@ Accessibility is part of the design, not a final compliance step:
 - **#4** Abandon requires confirmation.
 - **#5** No interactive target < 48dp; theme params are live (no dead code); no `maxLines = 1` clip on names; Appearance preference persists across restart (`SharedPreferences`), is held on `SessionViewModel`, and `MainActivity` reads it and passes it to `MyApplicationTheme`.
 - **#6** Hub reading order carried by weight+size, not color; passes the squint test.
+- **#7** First launch opens with no active session (no fake players/matches); the Hub shows an empty state or the app lands on Setup. All four screens *and* `OnDeckHorizonBar`/`TacticalPickleballCourtDiagram` are migrated off inline hex (satisfies #3). Screenshot baselines render from injected fixtures, and both dark + light baselines exist for Hub, Live Scoreboard, Setup, and the two sheets.
 
 ## 12. Design OS citations
 
