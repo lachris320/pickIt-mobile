@@ -465,7 +465,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         persistSession(updated)
     }
 
-    fun launchStandaloneScoreboard() {
+    fun launchStandaloneScoreboard(firstServingTeam: TeamId = TeamId.TEAM_A) {
         val p1 = Player("s1", "Team A Player 1")
         val p2 = Player("s2", "Team A Player 2")
         val p3 = Player("s3", "Team B Player 1")
@@ -474,7 +474,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val match = PickleballGameEngine.createMatch(
             courtId = 0,
             teamA = Team(TeamId.TEAM_A, p1, p2),
-            teamB = Team(TeamId.TEAM_B, p3, p4)
+            teamB = Team(TeamId.TEAM_B, p3, p4),
+            firstServingTeam = firstServingTeam
         )
         _standaloneMatch.value = match
         _currentScreen.value = AppScreen.StandaloneScoreboard(match)
