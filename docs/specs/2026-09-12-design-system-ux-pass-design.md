@@ -1,6 +1,6 @@
 # PickIt-mobile — Design-System & UX-Correctness Pass
 
-- **Status:** Approved (brainstorm) — pending design-spec review gate
+- **Status:** Approved (brainstorm) — codebase-validated in lieu of the automated gate (Codex not installed and the `claude -p` reviewer not logged in; feasibility claims validated directly against the codebase instead). Pending final user review.
 - **Date:** 2026-09-12
 - **Author:** Design OS EVALUATE → brainstorm
 - **Scope cycle:** A (this spec). B — "Court Call" / big-screen public-display mode — deferred to its own cycle.
@@ -49,6 +49,11 @@ New/updated in `ui/theme/`:
 - `DarkTokens`, `LightTokens` — the two instances.
 - `ThemeMode { DARK, LIGHT, SYSTEM }`.
 - `MyApplicationTheme(themeMode: ThemeMode, content)` — resolves dark/light, provides tokens + `colorScheme` + `Typography`. The dead `darkTheme`/`dynamicColor` params are removed.
+
+**Entrypoint wiring (verified against `MainActivity.kt`).** Today `MainActivity.onCreate` calls `MyApplicationTheme { … }` with **no arguments** and wraps content in `Surface(color = CanvasDark)` (a hardcoded color). This pass:
+- Adds `themeMode: StateFlow<ThemeMode>` + a `setThemeMode(mode)` action to `SessionViewModel` (already an `AndroidViewModel(application)` — it has the `Application` for persistence and already exposes `StateFlow`s).
+- `MainActivity` reads it via `collectAsState()` inside `setContent` and passes it to `MyApplicationTheme(themeMode = …)`.
+- The hardcoded `Surface(color = CanvasDark)` migrates to `tokens.canvas` (or is dropped once the theme paints the background).
 
 **Token roles**
 
@@ -139,7 +144,7 @@ A documented ladder the whole app obeys:
 ## 8. Behavioral fixes (cross-cutting)
 
 - **Abandon confirmation** dialog before the destructive action.
-- **Appearance preference — application-level, subordinated to setup.** A persistent Dark / Light / Follow-system preference, read by `MyApplicationTheme`, persisted via DataStore (or SharedPreferences). Because there is no dedicated Settings screen, a compact, clearly-secondary **Appearance** control lives in the Setup screen's **peripheral/header area** — outside the main setup form, and it **must not compete visually with `Launch session`**. (If a Settings surface is added later, the control moves there.)
+- **Appearance preference — application-level, subordinated to setup.** A persistent Dark / Light / Follow-system preference, held as `ThemeMode` state on `SessionViewModel` and read by `MyApplicationTheme` via the entrypoint (see §4). **Persistence uses `SharedPreferences`** via the `Application` context — read **synchronously** on VM init so the correct theme is applied before first composition (no theme flash). DataStore is *not* used: it is currently commented out in `app/build.gradle.kts`, and its async read would flash the default theme at startup; `SharedPreferences` needs no new dependency. The stored value is the `ThemeMode` enum name; `SYSTEM` defers to `isSystemInDarkTheme()`. Because there is no dedicated Settings screen, a compact, clearly-secondary **Appearance** control lives in the Setup screen's **peripheral/header area** — outside the main setup form, and it **must not compete visually with `Launch session`**. (If a Settings surface is added later, the control moves there.)
 - All interactive controls ≥48dp.
 - Text wraps/ellipsizes gracefully at large system font scale.
 - Semantic text roles applied throughout (kills inline `WhiteHighContrast`/`TextMuted`; guarantees light-palette legibility).
@@ -160,7 +165,9 @@ Accessibility is part of the design, not a final compliance step:
   - Primary interactive controls (incl. rest-player buttons) meet the 48dp minimum.
   - A composable resolves `PickItTokens` / `Typography` correctly (no crash, expected role values).
   - Setup starts with an empty roster; "Load sample players" populates it.
-- **Screenshot baselines:** key screens (Hub, Live Scoreboard, Setup, both sheets) in **both dark and light**, verified in CI.
+- **Screenshot baselines (Roborazzi — already configured):** the repo already wires Roborazzi (`app/build.gradle.kts`: `roborazzi` plugin, `roborazzi.compose`, `roborazzi.junit.rule`) with an existing `app/src/test/java/com/example/GreetingScreenshotTest.kt` and a `app/src/test/screenshots/greeting.png` baseline. Follow that pattern: capture key screens (Hub, Live Scoreboard, Setup, both sheets) in **both dark and light**, verified in CI. No new screenshot dependency is needed.
+
+**Test-safety note (verified):** no existing test depends on Setup's 12 sample players. The `Alice`/`Bob` names in `PickleballEngineTest` and `RoomDatabaseTest` are independent fixtures, not the Setup UI state — so removing the sample roster as live default state (§7) breaks no current test.
 
 ## 11. Acceptance criteria (mapped to findings)
 
@@ -168,7 +175,7 @@ Accessibility is part of the design, not a final compliance step:
 - **#2** `Typography` is fully defined; no rendered text below 12sp; caps confined to `labelSmall`; hierarchy legible in grayscale.
 - **#3** Zero inline surface/greens hex in screen/component files — all via tokens; radii ∈ {8,12,16}.
 - **#4** Abandon requires confirmation.
-- **#5** No interactive target < 48dp; theme params are live (no dead code); no `maxLines = 1` clip on names; Appearance preference persists.
+- **#5** No interactive target < 48dp; theme params are live (no dead code); no `maxLines = 1` clip on names; Appearance preference persists across restart (`SharedPreferences`), is held on `SessionViewModel`, and `MainActivity` reads it and passes it to `MyApplicationTheme`.
 - **#6** Hub reading order carried by weight+size, not color; passes the squint test.
 
 ## 12. Design OS citations
