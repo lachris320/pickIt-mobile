@@ -52,6 +52,7 @@
 ```kotlin
 package com.example.theme
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.DarkTokens
 import com.example.ui.theme.LightTokens
@@ -61,7 +62,7 @@ import org.junit.Test
 
 class TokenAndTypeTest {
     @Test fun darkTokens_haveExpectedCoreValues() {
-        assertEquals(0xFF0C110EL, DarkTokens.canvas.value shr 32 and 0xFFFFFFFFL)
+        assertEquals(Color(0xFF0C110E), DarkTokens.canvas)
         assertEquals(8.dp, DarkTokens.radiusSm)
         assertEquals(12.dp, DarkTokens.radiusMd)
         assertEquals(16.dp, DarkTokens.radiusLg)
@@ -489,8 +490,15 @@ package com.example.viewmodel
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -499,14 +507,21 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class FirstLaunchTest {
-    @Test fun freshInstall_hasNoActiveSession() = runTest {
+    private val dispatcher = StandardTestDispatcher()
+    @Before fun setUp() { Dispatchers.setMain(dispatcher) }
+    @After fun tearDown() { Dispatchers.resetMain() }
+
+    @Test fun freshInstall_hasNoActiveSession() = runTest(dispatcher) {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val vm = SessionViewModel(app)
-        // No saved session on a fresh install → session stays null (no fake demo seed).
+        advanceUntilIdle()   // let the init coroutine (Room load + fallback) complete
+        // Fresh install: no saved session → session stays null (no fake demo seed).
         assertNull(vm.session.value)
     }
 }
 ```
+
+> The `advanceUntilIdle()` after setting a test Main dispatcher is what makes this a real red→green test: with the old `createInitialSession()` still present, the init coroutine seeds a non-null session and this assertion FAILS; after the seed is removed it passes.
 
 - [ ] **Step 2: Run to verify it fails** — Expected: FAIL — today `createInitialSession()` seeds a fake session.
 
@@ -615,6 +630,84 @@ Add import: `com.example.ui.theme.LocalPickItTokens`.
 
 ---
 
+## Task 6A: Test fixtures + VM test seam (must precede Tasks 7–12)
+
+> **Why first:** the debug unit-test source set compiles as one unit, so any test referencing `Fixtures.*` requires `Fixtures.kt` to already exist or the whole `testDebugUnitTest` compilation fails. Create it before the first test that uses it.
+
+**Files:**
+- Create: `app/src/test/java/com/example/fixtures/Fixtures.kt`
+- Modify: `viewmodel/SessionViewModel.kt` (add a test-only seam)
+
+- [ ] **Step 1: Add the VM test seam**
+
+In `SessionViewModel`:
+
+```kotlin
+    @androidx.annotation.VisibleForTesting
+    fun loadSessionForTest(s: OpenPlaySession) { _session.value = s }
+```
+
+- [ ] **Step 2: Create `Fixtures.kt`** — deterministic (no run-varying timestamps)
+
+```kotlin
+package com.example.fixtures
+
+import com.example.engine.PickleballGameEngine
+import com.example.model.*
+
+object Fixtures {
+    const val KNOWN_PLAYER_ID = "fix_p0"
+
+    private fun player(i: Int) = Player(
+        id = "fix_p$i", name = "Player $i",
+        status = ParticipantStatus.AVAILABLE, queuedTimestamp = i.toLong(), matchesPlayed = 0,
+    )
+
+    fun inProgressSession(): OpenPlaySession {
+        val p = (0..7).map { player(it) }
+        val m1 = PickleballGameEngine.createMatch(
+            courtId = 1,
+            teamA = Team(TeamId.TEAM_A, p[0], p[1]),
+            teamB = Team(TeamId.TEAM_B, p[2], p[3]),
+        ).copy(scoreA = 6, scoreB = 4)
+        return OpenPlaySession(
+            id = "fix_sess", name = "Fixture Session",
+            rotationPolicy = RotationPolicy.FOUR_OFF_FOUR_ON,
+            courts = listOf(Court(id = 1, name = "Court 1", status = CourtStatus.IN_PROGRESS, currentMatch = m1)),
+            roster = p,
+        )
+    }
+
+    fun twoReadyCourtsSession(): OpenPlaySession {
+        val p = (0..7).map { player(it) }
+        val base = OpenPlaySession(
+            id = "fix_sess2", name = "Fixture Session 2",
+            rotationPolicy = RotationPolicy.FOUR_OFF_FOUR_ON,
+            courts = listOf(
+                Court(id = 2, name = "Court 2", status = CourtStatus.AVAILABLE),
+                Court(id = 3, name = "Court 3", status = CourtStatus.AVAILABLE),
+            ),
+            roster = p,
+        )
+        val recs = listOf(2, 3).mapNotNull { id ->
+            com.example.engine.RotationEngine.generateRecommendation(base, id, null)?.let { id to it }
+        }.toMap()
+        return base.copy(activeRecommendations = recs)
+    }
+}
+```
+
+> Verify field/constructor names against `model/SessionModels.kt` while writing this (Player/Team/Court/OpenPlaySession/RotationRecommendation shapes) and adjust to match exactly. If `RotationEngine.generateRecommendation` returns null for these rosters, construct the two `RotationRecommendation`s directly instead so both courts are "ready."
+
+- [ ] **Step 3: Compile the test source set**
+
+Run: `./gradlew :app:compileDebugUnitTestKotlin`
+Expected: BUILD SUCCESSFUL (fixtures + seam resolve).
+
+- [ ] **Step 4: Commit** — `test(fixtures): add deterministic session fixtures + VM test seam`
+
+---
+
 ## Task 7: Abandon-match confirmation dialog
 
 **Files:**
@@ -651,7 +744,8 @@ class AbandonConfirmTest {
 
     @Test fun abandon_requiresConfirmation() {
         val vm = SessionViewModel(ApplicationProvider.getApplicationContext<Application>())
-        vm.loadSessionForTest(Fixtures.inProgressSession())   // see Task 12 test seam
+        vm.loadSessionForTest(Fixtures.inProgressSession())   // seam + fixtures from Task 6A
+        vm.navigateTo(AppScreen.LiveScoreboard(1))            // so currentScreen isn't the default SessionHub
         rule.setContent { MyApplicationTheme { LiveScoreboardScreen(courtId = 1, viewModel = vm) } }
 
         rule.onNodeWithTag("abandon_match_button").performClick()
@@ -665,7 +759,7 @@ class AbandonConfirmTest {
 }
 ```
 
-> Add a small test seam to `SessionViewModel`: `@androidx.annotation.VisibleForTesting fun loadSessionForTest(s: OpenPlaySession) { _session.value = s }`. (Trivial, test-only; not a logic change to production paths.)
+> `loadSessionForTest` and `Fixtures` come from Task 6A (already created before this task).
 
 - [ ] **Step 2: Run to verify it fails** — Expected: FAIL — no `confirm_abandon_button`; abandon fires immediately today.
 
@@ -748,21 +842,21 @@ Full test body (mirror the render setup from `AbandonConfirmTest`, using `Fixtur
             .testTag("recommendation_card_${recommendation.courtId}"),
 ```
 
-CTA button:
+CTA button. **A second `Modifier.testTag` replaces the first rather than adding**, so emit the `primary_call_button` tag only on a wrapping `Box` in the primary case (this is why the emphasis test can count exactly one):
 
 ```kotlin
-        Button(
-            onClick = onCallAndStart,
-            colors = if (isPrimary) ButtonDefaults.buttonColors(
-                    containerColor = LocalPickItTokens.current.accent, contentColor = LocalPickItTokens.current.onAccent)
-                else ButtonDefaults.outlinedButtonColors(),
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-                .testTag("call_and_start_button_${recommendation.courtId}")
-                .then(if (isPrimary) Modifier.testTag("primary_call_button") else Modifier),
-        ) { Text(if (isPrimary) "Call & start court ${recommendation.courtId}" else "Call court ${recommendation.courtId}", fontWeight = FontWeight.Bold) }
+        val cta = @Composable {
+            Button(
+                onClick = onCallAndStart,
+                colors = if (isPrimary) ButtonDefaults.buttonColors(
+                        containerColor = LocalPickItTokens.current.accent, contentColor = LocalPickItTokens.current.onAccent)
+                    else ButtonDefaults.outlinedButtonColors(),
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+                    .testTag("call_and_start_button_${recommendation.courtId}"),
+            ) { Text(if (isPrimary) "Call & start court ${recommendation.courtId}" else "Call court ${recommendation.courtId}", fontWeight = FontWeight.Bold) }
+        }
+        if (isPrimary) Box(Modifier.testTag("primary_call_button")) { cta() } else cta()
 ```
-
-> `Modifier.testTag` twice replaces, not adds. Instead use `Modifier.semantics { testTagsAsResourceId = true }` is not needed here — apply the second tag on a wrapping `Box` for the primary case, OR gate rendering: only the primary card emits a child with `testTag("primary_call_button")`. Simplest: wrap the primary CTA in `Box(Modifier.testTag("primary_call_button")) { Button(...) }`. Use that form.
 
 In `SessionHubScreen`, sort before rendering (replace `items(recommendations.values.toList())` at line 126):
 
@@ -840,7 +934,7 @@ Mechanical migration: replace every hardcoded color with the mapped token via `L
 | `Color(0xFFEF5350)` (abandon text) | `textDanger` |
 | Any other ad-hoc dark green | nearest of `surface`/`surfaceElevated`/`surfaceInset` by lightness |
 
-Do each file as its own commit. For every file: (a) swap colors per the table; (b) replace `.uppercase()`/ALL-CAPS section labels with sentence case except `labelSmall` eyebrows; (c) apply the patterns below.
+Do each file as its own commit. For every file: (a) swap colors per the table; (b) replace `.uppercase()`/ALL-CAPS section labels with sentence case except `labelSmall` eyebrows; (c) apply the patterns below; (d) **normalize radii to the token scale** — `RoundedCornerShape(8/10.dp)` → `radiusSm`, `(12.dp)` → `radiusMd`, `(14/16/20.dp)` → `radiusLg` (satisfies spec §4 / acceptance #3's "radii ∈ {8,12,16}"; existing offenders include `RecommendationCard.kt:291`, `CourtStatusCard.kt:38`, `SetupScreen.kt:132`).
 
 - [ ] **9a — `CourtStatusCard.kt`:** drop the full colored `border(1.5.dp, borderColor…)`; use `surface` + `border`. Render status as a **dot with distinct shape + label + color**: `AVAILABLE` = outlined ring + "Open" (`statusOpen`); `IN_PROGRESS` = filled dot + "Live" (`statusLive`); `PAUSED` = pause glyph + "Paused" (`statusPaused`). Actions neutral (`Live score` outlined; `Final score` outlined). Commit: `refactor(court-card): tokens + status dot/shape/label, drop colored border`.
 - [ ] **9b — `SessionHubScreen.kt`:** section eyebrows → `labelSmall` sentence-case `textSecondary`; queue button tonal (`surfaceInset` + `textAccent`); standalone block → quiet row (no bordered surface). Commit: `refactor(hub): tokens + quiet section labels`.
@@ -872,7 +966,7 @@ After 9a–9j, run `./gradlew :app:compileDebugKotlin` — Expected: BUILD SUCCE
         rule.onAllNodesWithTag("roster_chip", useUnmergedTree = true).assertCountEquals(0)
         // load sample players populates it:
         rule.onNodeWithTag("load_sample_players_button").performClick()
-        rule.onAllNodesWithTag("roster_chip", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        rule.onAllNodesWithTag("roster_chip", useUnmergedTree = true).assertCountEquals(12)
 ```
 
 - [ ] **Step 2: Run to verify it fails** — Expected: FAIL — Setup seeds 12 players; no `load_sample_players_button`.
@@ -946,15 +1040,12 @@ Add imports for `DropdownMenu`, `DropdownMenuItem`, `Icons.Default.BrightnessMed
 ## Task 12: Fixtures + deterministic dual-theme Roborazzi baselines
 
 **Files:**
-- Create: `app/src/test/java/com/example/fixtures/Fixtures.kt`, `app/src/test/java/com/example/screenshots/ScreenshotBaselinesTest.kt`
+- Create: `app/src/test/java/com/example/screenshots/ScreenshotBaselinesTest.kt`
 - Delete: `app/src/test/java/com/example/GreetingScreenshotTest.kt`, `app/src/test/screenshots/greeting.png`
-- Add test seam (Task 7): `SessionViewModel.loadSessionForTest`.
 
-- [ ] **Step 1: Build the fixtures**
+*(`Fixtures.kt` and the `loadSessionForTest` seam already exist from Task 6A.)*
 
-`Fixtures.kt` exposes `KNOWN_PLAYER_ID`, `inProgressSession()`, `twoReadyCourtsSession()` — fixed `OpenPlaySession`/`Match` objects (deterministic ids/scores) built via `PickleballGameEngine.createMatch(...)` and `Player(...)`, mirroring the shapes in `SessionModels.kt`. No timestamps that vary run-to-run (hardcode `queuedTimestamp = 0L`).
-
-- [ ] **Step 2: Write the baseline test** (render each screen from fixtures, both themes)
+- [ ] **Step 1: Write the baseline test** (render each screen from fixtures, both themes)
 
 ```kotlin
     private fun capture(name: String, mode: ThemeMode, content: @Composable () -> Unit) {
@@ -967,21 +1058,21 @@ Add imports for `DropdownMenu`, `DropdownMenuItem`, `Icons.Default.BrightnessMed
 
 Use `loadSessionForTest` to seed the VM synchronously so nothing waits on Room.
 
-- [ ] **Step 3: Delete the stale test + baseline**
+- [ ] **Step 2: Delete the stale test + baseline**
 
 Remove `GreetingScreenshotTest.kt` and `src/test/screenshots/greeting.png` (orphaned; the real capture was `app_home.png`).
 
-- [ ] **Step 4: Record baselines**
+- [ ] **Step 3: Record baselines**
 
 Run: `./gradlew :app:recordRoborazziDebug`
 Expected: writes `hub-dark.png`, `hub-light.png`, `live-dark.png`, … under `app/src/test/screenshots/`. Eyeball each for the emphasis/contrast goals.
 
-- [ ] **Step 5: Verify**
+- [ ] **Step 4: Verify**
 
 Run: `./gradlew :app:verifyRoborazziDebug`
 Expected: PASS (no diff against the just-recorded baselines).
 
-- [ ] **Step 6: Commit** — `test(screenshots): fixture-based dual-theme baselines; drop stale greeting test`
+- [ ] **Step 5: Commit** — `test(screenshots): fixture-based dual-theme baselines; drop stale greeting test`
 
 ---
 
@@ -990,11 +1081,11 @@ Expected: PASS (no diff against the just-recorded baselines).
 - [ ] **Step 1: Run the whole unit-test suite**
 
 Run: `./gradlew :app:testDebugUnitTest`
-Expected: PASS (all new + existing: `PickleballEngineTest`, `RoomDatabaseTest`, `UsabilityWalkthroughEdgeCasesTest`, etc.). Fix any fallout — the usability walkthrough may assume the old seeded session; update it to seed via `loadSessionForTest`/`startNewSession` rather than the removed demo.
+Expected: PASS (all new + existing: `PickleballEngineTest`, `RoomDatabaseTest`, `UsabilityWalkthroughEdgeCasesTest`, etc.). Note: `UsabilityWalkthroughEdgeCasesTest` is pure engine/model (no `SessionViewModel`, no `createInitialSession`), so removing the demo seed does not affect it (confirmed in spec §10). If any test *does* fail, seed via `loadSessionForTest`/`startNewSession` rather than the removed demo.
 
 - [ ] **Step 2: Acceptance sweep against the spec §11**
 
-Verify #1–#7 by grep/inspection: one `primary_call_button` per Hub; no rendered text < 12sp (grep `sp` in screens for `9.sp`/`10.sp` → none); `grep -rn "Color(0x" ui/screens ui/components` → only documented exceptions; Abandon has a dialog; no `.size(24.dp)` on interactive controls; first launch shows the empty state; both dark+light baselines exist.
+Verify #1–#7 by grep/inspection: one `primary_call_button` per Hub; no rendered text < 12sp (`grep -rnE "[^0-9](9|10|11)\.sp" ui/screens ui/components` → none); `grep -rn "Color(0x" ui/screens ui/components` → only documented exceptions; `grep -rnE "RoundedCornerShape\((10|14|20)\.dp\)" ui/screens ui/components` → none (radii normalized to 8/12/16); Abandon has a dialog; no `.size(24.dp)` on interactive controls; first launch shows the empty state; both dark+light baselines exist.
 
 - [ ] **Step 3: Build**
 
