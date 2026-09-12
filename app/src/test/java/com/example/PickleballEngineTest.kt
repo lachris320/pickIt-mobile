@@ -68,6 +68,47 @@ class PickleballEngineTest {
     }
 
     @Test
+    fun `second server serves from opposite side after first server faults`() {
+        var match = PickleballGameEngine.createMatch(courtId = 1, teamA = teamA, teamB = teamB)
+        // 0-0-2: receiving team (B) wins -> side out to Team B, Server 1, RIGHT (score 0 = even)
+        match = PickleballGameEngine.recordRally(match, TeamId.TEAM_B)
+        assertEquals(TeamId.TEAM_B, match.servingTeam)
+        assertEquals(1, match.serverNumber)
+        assertEquals(CourtSide.RIGHT, match.servingSide)
+
+        // Team B's Server 1 faults (Team A wins the rally). No point is scored, so nobody
+        // moves: Server 2 is on the diagonally opposite court, so the serve flips to LEFT.
+        match = PickleballGameEngine.recordRally(match, TeamId.TEAM_A)
+        assertEquals(TeamId.TEAM_B, match.servingTeam)
+        assertEquals(2, match.serverNumber)
+        assertEquals(CourtSide.LEFT, match.servingSide)
+        assertEquals("b2", match.currentServer.id)
+    }
+
+    @Test
+    fun `undo preserves the chosen first serving team`() {
+        var match = PickleballGameEngine.createMatch(
+            courtId = 1,
+            teamA = teamA,
+            teamB = teamB,
+            firstServingTeam = TeamId.TEAM_B
+        )
+        assertEquals(TeamId.TEAM_B, match.servingTeam)
+        assertEquals("b1", match.currentServer.id)
+
+        match = PickleballGameEngine.recordRally(match, TeamId.TEAM_A) // side out to Team A
+        match = PickleballGameEngine.undoLastRally(match)
+
+        // Must rewind to the Team-B-first start, not silently default to Team A.
+        assertEquals(TeamId.TEAM_B, match.servingTeam)
+        assertEquals(2, match.serverNumber)
+        assertEquals(CourtSide.RIGHT, match.servingSide)
+        assertEquals(0, match.scoreA)
+        assertEquals(0, match.scoreB)
+        assertEquals("b1", match.currentServer.id)
+    }
+
+    @Test
     fun `rotation engine generates fair 4-off recommendation`() {
         val players = (1..8).map {
             Player(id = "p$it", name = "Player $it", status = ParticipantStatus.AVAILABLE)

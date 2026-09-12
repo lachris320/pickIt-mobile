@@ -71,6 +71,54 @@ fun StandaloneScoreboardScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // First-server selector — only before the first rally is recorded.
+            // Re-creates the match so the chosen team serves first (0-0-2).
+            if (match.rallyHistory.isEmpty()) {
+                Surface(
+                    color = PickleballCardSurface,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PickleballCardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                        Text(
+                            text = "FIRST SERVER",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted,
+                            fontSize = 9.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val teamAServing = match.servingTeam == TeamId.TEAM_A
+                            Button(
+                                onClick = { viewModel.launchStandaloneScoreboard(TeamId.TEAM_A) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("first_server_team_a_button"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (teamAServing) TeamAColor else Color(0xFF0E282B),
+                                    contentColor = if (teamAServing) Color.Black else TeamAColor
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) { Text("TEAM A", fontWeight = FontWeight.Black) }
+
+                            Button(
+                                onClick = { viewModel.launchStandaloneScoreboard(TeamId.TEAM_B) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("first_server_team_b_button"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (!teamAServing) TeamBColor else Color(0xFF2B1F0E),
+                                    contentColor = if (!teamAServing) Color.Black else TeamBColor
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) { Text("TEAM B", fontWeight = FontWeight.Black) }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+
             // Secondary Information (3-number callout + server info)
             Surface(
                 color = PickleballCardSurface,

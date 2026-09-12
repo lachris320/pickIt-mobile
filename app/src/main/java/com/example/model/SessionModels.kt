@@ -87,6 +87,7 @@ data class Match(
     val endTime: Long? = null,
     val scoreA: Int = 0,
     val scoreB: Int = 0,
+    val firstServingTeam: TeamId = TeamId.TEAM_A, // team that served first; needed to replay/undo correctly
     val servingTeam: TeamId = TeamId.TEAM_A,
     val serverNumber: Int = 2, // Official initial serve rule at 0-0-2
     val teamAServer1: Player = teamA.player1,

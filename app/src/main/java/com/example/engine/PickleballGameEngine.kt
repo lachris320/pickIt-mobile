@@ -14,9 +14,12 @@ object PickleballGameEngine {
         teamA: Team,
         teamB: Team,
         targetScore: Int = 11,
-        winByTwo: Boolean = true
+        winByTwo: Boolean = true,
+        firstServingTeam: TeamId = TeamId.TEAM_A
     ): Match {
         // Official start: Serving team begins on Server 2 (0-0-2)
+        val servingTeamObj = if (firstServingTeam == TeamId.TEAM_A) teamA else teamB
+        val receivingTeamObj = if (firstServingTeam == TeamId.TEAM_A) teamB else teamA
         return Match(
             id = "match_${System.currentTimeMillis()}_${courtId}",
             courtId = courtId,
@@ -26,12 +29,13 @@ object PickleballGameEngine {
             winByTwo = winByTwo,
             scoreA = 0,
             scoreB = 0,
-            servingTeam = TeamId.TEAM_A,
+            firstServingTeam = firstServingTeam,
+            servingTeam = firstServingTeam,
             serverNumber = 2,
             teamAServer1 = teamA.player1,
             teamBServer1 = teamB.player1,
-            currentServer = teamA.player1,
-            currentReceiver = teamB.player1,
+            currentServer = servingTeamObj.player1,
+            currentReceiver = receivingTeamObj.player1,
             servingSide = CourtSide.RIGHT,
             rallyHistory = emptyList(),
             isCompleted = false
@@ -79,6 +83,11 @@ object PickleballGameEngine {
                 newServerNumber = 2
                 val servingTeamObj = if (current.servingTeam == TeamId.TEAM_A) current.teamA else current.teamB
                 val receivingTeamObj = if (current.servingTeam == TeamId.TEAM_A) current.teamB else current.teamA
+
+                // No point was scored, so nobody moves: Server 2 (the partner) is
+                // standing on the diagonally opposite court from Server 1, so the
+                // serve switches sides (Right <-> Left).
+                newServingSide = if (current.servingSide == CourtSide.RIGHT) CourtSide.LEFT else CourtSide.RIGHT
 
                 // Server 2 is the partner of Server 1
                 newServer = if (current.currentServer.id == servingTeamObj.player1.id) {
@@ -159,7 +168,8 @@ object PickleballGameEngine {
             teamA = current.teamA,
             teamB = current.teamB,
             targetScore = current.targetScore,
-            winByTwo = current.winByTwo
+            winByTwo = current.winByTwo,
+            firstServingTeam = current.firstServingTeam
         )
 
         for (event in previousEvents) {
