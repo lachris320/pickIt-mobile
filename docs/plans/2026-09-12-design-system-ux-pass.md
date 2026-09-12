@@ -489,16 +489,11 @@ Expected: BUILD SUCCESSFUL.
 package com.example.viewmodel
 
 import android.app.Application
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertNull
-import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -507,21 +502,19 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class FirstLaunchTest {
-    private val dispatcher = StandardTestDispatcher()
-    @Before fun setUp() { Dispatchers.setMain(dispatcher) }
-    @After fun tearDown() { Dispatchers.resetMain() }
+    @get:Rule val rule = createComposeRule()
 
-    @Test fun freshInstall_hasNoActiveSession() = runTest(dispatcher) {
+    @Test fun freshInstall_hasNoActiveSession() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val vm = SessionViewModel(app)
-        advanceUntilIdle()   // let the init coroutine (Room load + fallback) complete
-        // Fresh install: no saved session → session stays null (no fake demo seed).
-        assertNull(vm.session.value)
+        rule.setContent { Box(Modifier) {} }   // drive the Compose/Robolectric clock
+        rule.waitForIdle()                      // reliably lets the init coroutine (Room load) settle
+        rule.runOnIdle { assertNull(vm.session.value) }
     }
 }
 ```
 
-> The `advanceUntilIdle()` after setting a test Main dispatcher is what makes this a real red→green test: with the old `createInitialSession()` still present, the init coroutine seeds a non-null session and this assertion FAILS; after the seed is removed it passes.
+> **Why the Compose rule, not `advanceUntilIdle`:** `advanceUntilIdle()` only drains the test `Main` dispatcher, but Room's suspend query resumes off its own IO executor, so the `init` continuation may not have run when the assertion fires — the test could pass with the seed still present (a false green). The Compose rule's `waitForIdle` synchronizes the same way `GreetingScreenshotTest` already relies on to render loaded content, so this is a real red→green: with the old `createInitialSession()` present the assertion FAILS; after seed removal it passes. `SessionHubEmptyStateTest` (Steps 5–8) is the companion UI-level proof. Add `import androidx.compose.ui.Modifier`.
 
 - [ ] **Step 2: Run to verify it fails** — Expected: FAIL — today `createInitialSession()` seeds a fake session.
 
@@ -540,14 +533,15 @@ In `SessionViewModel`, change the `init` block's fallback and delete `createInit
                     if (r != null) recs[c.id] = r
                 }
                 _session.value = savedSession.copy(activeRecommendations = recs)
-            } else {
-                _session.value = null   // fresh install: no active session
             }
+            // No saved session → _session stays at its `null` default (SessionViewModel.kt:34).
+            // Do NOT add an `else { _session.value = null }`: this coroutine resumes AFTER a
+            // test's loadSessionForTest() runs and would clobber the injected fixture with null.
         }
     }
 ```
 
-Delete the entire `private fun createInitialSession()` (lines 67–115). Keep `frequentPlayers` (reused in Task 10).
+Delete the entire `private fun createInitialSession()` (lines 67–115). Keep `frequentPlayers` (reused in Task 10). Removing the demo seed (not adding a null-write) is the whole change — production first-launch stays empty, and an injected test session survives `init`.
 
 - [ ] **Step 4: Run VM test to verify it passes** — Expected: PASS.
 
@@ -1085,7 +1079,7 @@ Expected: PASS (all new + existing: `PickleballEngineTest`, `RoomDatabaseTest`, 
 
 - [ ] **Step 2: Acceptance sweep against the spec §11**
 
-Verify #1–#7 by grep/inspection: one `primary_call_button` per Hub; no rendered text < 12sp (`grep -rnE "[^0-9](9|10|11)\.sp" ui/screens ui/components` → none); `grep -rn "Color(0x" ui/screens ui/components` → only documented exceptions; `grep -rnE "RoundedCornerShape\((10|14|20)\.dp\)" ui/screens ui/components` → none (radii normalized to 8/12/16); Abandon has a dialog; no `.size(24.dp)` on interactive controls; first launch shows the empty state; both dark+light baselines exist.
+Verify #1–#7 by grep/inspection: one `primary_call_button` per Hub; no rendered text < 12sp (`grep -rnE "[^0-9](9|10|11)\.sp" ui/screens ui/components` → none); `grep -rn "Color(0x" ui/screens ui/components` → only documented exceptions; `grep -rnE "RoundedCornerShape\((10|14|20)\.dp\)" ui/screens ui/components` → none (card/control radii normalized to 8/12/16). **Documented exceptions:** small pill/dot radii (4dp/6dp — e.g. the match-point and side-out pills at `LiveScoreboardScreen.kt:91,368`, status dots) stay as-is; spec §4 names only 10/14dp, so sub-8 badge radii are intentional and out of the `{8,12,16}` rule. Abandon has a dialog; no `.size(24.dp)` on interactive controls; first launch shows the empty state; both dark+light baselines exist.
 
 - [ ] **Step 3: Build**
 
