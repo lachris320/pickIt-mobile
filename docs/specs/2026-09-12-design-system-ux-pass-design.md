@@ -1,6 +1,6 @@
 # PickIt-mobile — Design-System & UX-Correctness Pass
 
-- **Status:** Approved (brainstorm) — passed the independent design-spec review gate (`/claude-review`, DESIGN-SPEC mode, **APPROVE**); all Important + Low findings folded in. Pending final user review.
+- **Status:** Approved (brainstorm) — passed the independent design-spec review gate (`/claude-review`, DESIGN-SPEC mode, **APPROVE (final)** after 3 rounds; all findings folded in). Pending final user review, then `/writing-plans`.
 - **Date:** 2026-09-12
 - **Author:** Design OS EVALUATE → brainstorm
 - **Scope cycle:** A (this spec). B — "Court Call" / big-screen public-display mode — deferred to its own cycle.
