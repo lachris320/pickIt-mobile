@@ -26,6 +26,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default `packages: tools platform-tools` now fails:
+          # Google removed the legacy `tools` package from the SDK repository
+          # ("Failed to find package 'tools'"). Request only platform-tools;
+          # AGP auto-downloads the platform/build-tools the build needs.
+          packages: platform-tools
 
       # No Gradle wrapper JAR is committed, so install Gradle 9.3.1 directly
       # (matches gradle/wrapper/gradle-wrapper.properties) and use `gradle`.
