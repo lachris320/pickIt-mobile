@@ -28,17 +28,13 @@ fun SetupScreen(
     viewModel: SessionViewModel,
     modifier: Modifier = Modifier
 ) {
-    var sessionName by remember { mutableStateOf("Saturday Morning Open Play") }
+    var sessionName by remember { mutableStateOf("") }
     var courtCount by remember { mutableIntStateOf(3) }
     var rotationPolicy by remember { mutableStateOf(RotationPolicy.FOUR_OFF_FOUR_ON) }
 
-    val selectedPlayers = remember {
-        mutableStateListOf(
-            "Alice M.", "Bob T.", "Charlie D.", "Dave K.",
-            "Frank L.", "Grace H.", "Henry P.", "Ivy W.",
-            "Ken S.", "Elena R.", "Tom H.", "Sarah B."
-        )
-    }
+    // Roster starts empty so the organizer builds their own; "Load sample players"
+    // seeds demo/testing names without contaminating real operational state.
+    val selectedPlayers = remember { mutableStateListOf<String>() }
 
     var customPlayerInput by remember { mutableStateOf("") }
     val tokens = LocalPickItTokens.current
@@ -92,6 +88,7 @@ fun SetupScreen(
                     value = sessionName,
                     onValueChange = { sessionName = it },
                     singleLine = true,
+                    placeholder = { Text("Saturday Open Play") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = tokens.textPrimary,
                         unfocusedTextColor = tokens.textPrimary,
@@ -247,6 +244,17 @@ fun SetupScreen(
                         Text("Add")
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (selectedPlayers.isEmpty()) {
+                            selectedPlayers.addAll(viewModel.frequentPlayers.take(12))
+                        }
+                    },
+                    modifier = Modifier.testTag("load_sample_players_button")
+                ) {
+                    Text("Load sample players")
+                }
             }
 
             // Roster tags/chips
@@ -261,6 +269,7 @@ fun SetupScreen(
                             selected = true,
                             onClick = { selectedPlayers.removeAt(index) },
                             label = { Text(player) },
+                            modifier = Modifier.testTag("roster_chip"),
                             trailingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Close,
