@@ -50,8 +50,14 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         themePrefs.writeMode(mode)
     }
 
+    @Volatile
+    private var testSessionInjected = false
+
     @androidx.annotation.VisibleForTesting
-    fun loadSessionForTest(s: OpenPlaySession) { _session.value = s }
+    fun loadSessionForTest(s: OpenPlaySession) {
+        testSessionInjected = true
+        _session.value = s
+    }
 
     val frequentPlayers = listOf(
         "Alice M.", "Bob T.", "Charlie D.", "Dave K.",
@@ -66,7 +72,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         // state — see SessionHubScreen). No fake demo session is seeded.
         viewModelScope.launch {
             val savedSession = repository.loadLatestSession()
-            if (savedSession != null && savedSession.roster.isNotEmpty()) {
+            if (savedSession != null && savedSession.roster.isNotEmpty() && !testSessionInjected) {
                 // Re-evaluate recommendations
                 val recs = mutableMapOf<Int, RotationRecommendation>()
                 savedSession.courts.filter { it.status == CourtStatus.AVAILABLE }.forEach { c ->
