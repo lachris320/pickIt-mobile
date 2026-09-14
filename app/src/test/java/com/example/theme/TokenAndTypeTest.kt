@@ -20,4 +20,13 @@ class TokenAndTypeTest {
         assertNotEquals(DarkTokens.canvas, LightTokens.canvas)
         assertNotEquals(DarkTokens.textPrimary, LightTokens.textPrimary)
     }
+
+    @Test fun typography_hasFullScaleWithFloors() {
+        val t = com.example.ui.theme.Typography
+        assertEquals(64f, t.displayLarge.fontSize.value)
+        assertEquals(androidx.compose.ui.text.font.FontWeight.Black, t.displayLarge.fontWeight)
+        assertEquals(16f, t.titleMedium.fontSize.value)   // card titles
+        assertEquals(13f, t.bodySmall.fontSize.value)     // meta floor
+        assertEquals(12f, t.labelSmall.fontSize.value)    // eyebrow floor (no 9/10sp)
+    }
 }
