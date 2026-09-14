@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -35,16 +34,17 @@ fun StandaloneScoreboardScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val tokens = LocalPickItTokens.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "STANDALONE SCOREBOARD",
+                        text = "Standalone scoreboard",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = WhiteHighContrast
+                        color = tokens.textPrimary
                     )
                 },
                 navigationIcon = {
@@ -55,14 +55,14 @@ fun StandaloneScoreboardScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = WhiteHighContrast
+                            tint = tokens.textPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CanvasDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = tokens.canvas)
             )
         },
-        containerColor = CanvasDark
+        containerColor = tokens.canvas
     ) { innerPadding ->
         Column(
             modifier = modifier
@@ -75,17 +75,16 @@ fun StandaloneScoreboardScreen(
             // Re-creates the match so the chosen team serves first (0-0-2).
             if (match.rallyHistory.isEmpty()) {
                 Surface(
-                    color = PickleballCardSurface,
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PickleballCardBorder),
+                    color = tokens.surfaceElevated,
+                    shape = RoundedCornerShape(tokens.radiusMd),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, tokens.border),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
                         Text(
                             text = "FIRST SERVER",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -96,10 +95,10 @@ fun StandaloneScoreboardScreen(
                                     .weight(1f)
                                     .testTag("first_server_team_a_button"),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (teamAServing) TeamAColor else Color(0xFF0E282B),
-                                    contentColor = if (teamAServing) Color.Black else TeamAColor
+                                    containerColor = if (teamAServing) tokens.teamA else tokens.surfaceInset,
+                                    contentColor = if (teamAServing) tokens.onTeamA else tokens.teamA
                                 ),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(tokens.radiusSm)
                             ) { Text("TEAM A", fontWeight = FontWeight.Black) }
 
                             Button(
@@ -108,10 +107,10 @@ fun StandaloneScoreboardScreen(
                                     .weight(1f)
                                     .testTag("first_server_team_b_button"),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (!teamAServing) TeamBColor else Color(0xFF2B1F0E),
-                                    contentColor = if (!teamAServing) Color.Black else TeamBColor
+                                    containerColor = if (!teamAServing) tokens.teamB else tokens.surfaceInset,
+                                    contentColor = if (!teamAServing) tokens.onTeamB else tokens.teamB
                                 ),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(tokens.radiusSm)
                             ) { Text("TEAM B", fontWeight = FontWeight.Black) }
                         }
                     }
@@ -121,9 +120,9 @@ fun StandaloneScoreboardScreen(
 
             // Secondary Information (3-number callout + server info)
             Surface(
-                color = PickleballCardSurface,
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PickleballCardBorder),
+                color = tokens.surfaceElevated,
+                shape = RoundedCornerShape(tokens.radiusMd),
+                border = androidx.compose.foundation.BorderStroke(1.dp, tokens.border),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -137,14 +136,13 @@ fun StandaloneScoreboardScreen(
                         Text(
                             text = "CALLOUT",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Text(
                             text = match.calloutString(),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Black,
-                            color = PickleballLime
+                            color = tokens.textAccent
                         )
                     }
 
@@ -152,14 +150,13 @@ fun StandaloneScoreboardScreen(
                         Text(
                             text = "SERVING SIDE",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Text(
                             text = "${match.servingSide.name} COURT",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = WhiteHighContrast
+                            color = tokens.textPrimary
                         )
                     }
 
@@ -167,14 +164,13 @@ fun StandaloneScoreboardScreen(
                         Text(
                             text = "SERVER",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Text(
                             text = "SERVER ${match.serverNumber}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (match.servingTeam == TeamId.TEAM_A) TeamAColor else TeamBColor
+                            color = if (match.servingTeam == TeamId.TEAM_A) tokens.teamA else tokens.teamB
                         )
                     }
                 }
@@ -189,9 +185,9 @@ fun StandaloneScoreboardScreen(
 
             // High-Contrast Primary Scoreboard Display
             Surface(
-                color = Color(0xFF141D17),
-                shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(2.dp, PickleballCardBorder),
+                color = tokens.surfaceInset,
+                shape = RoundedCornerShape(tokens.radiusLg),
+                border = androidx.compose.foundation.BorderStroke(2.dp, tokens.border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1.05f)
@@ -211,7 +207,7 @@ fun StandaloneScoreboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (match.servingTeam == TeamId.TEAM_A) {
                                 Surface(
-                                    color = PickleballLime,
+                                    color = tokens.accent,
                                     shape = CircleShape,
                                     modifier = Modifier.size(10.dp)
                                 ) {}
@@ -221,7 +217,7 @@ fun StandaloneScoreboardScreen(
                                 text = "TEAM A",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TeamAColor
+                                color = tokens.teamA
                             )
                         }
 
@@ -239,7 +235,7 @@ fun StandaloneScoreboardScreen(
                                 style = MaterialTheme.typography.displayLarge,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 68.sp,
-                                color = WhiteHighContrast
+                                color = tokens.textPrimary
                             )
                         }
                     }
@@ -248,7 +244,7 @@ fun StandaloneScoreboardScreen(
                         modifier = Modifier
                             .width(2.dp)
                             .height(80.dp)
-                            .background(PickleballCardBorder)
+                            .background(tokens.border)
                     )
 
                     Column(
@@ -259,7 +255,7 @@ fun StandaloneScoreboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (match.servingTeam == TeamId.TEAM_B) {
                                 Surface(
-                                    color = PickleballLime,
+                                    color = tokens.accent,
                                     shape = CircleShape,
                                     modifier = Modifier.size(10.dp)
                                 ) {}
@@ -269,7 +265,7 @@ fun StandaloneScoreboardScreen(
                                 text = "TEAM B",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TeamBColor
+                                color = tokens.teamB
                             )
                         }
 
@@ -287,7 +283,7 @@ fun StandaloneScoreboardScreen(
                                 style = MaterialTheme.typography.displayLarge,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 68.sp,
-                                color = WhiteHighContrast
+                                color = tokens.textPrimary
                             )
                         }
                     }
@@ -318,10 +314,10 @@ fun StandaloneScoreboardScreen(
                         .weight(1f)
                         .testTag("standalone_team_a_won_button"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = TeamAColor,
-                        contentColor = Color.Black
+                        containerColor = tokens.teamA,
+                        contentColor = tokens.onTeamA
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(tokens.radiusLg),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -334,7 +330,7 @@ fun StandaloneScoreboardScreen(
                             text = if (match.servingTeam == TeamId.TEAM_A) "+1 Point (Serving)" else "Side-out / Fault",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00363A)
+                            color = tokens.onTeamA
                         )
                     }
                 }
@@ -354,10 +350,10 @@ fun StandaloneScoreboardScreen(
                         .weight(1f)
                         .testTag("standalone_team_b_won_button"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = TeamBColor,
-                        contentColor = Color.Black
+                        containerColor = tokens.teamB,
+                        contentColor = tokens.onTeamB
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(tokens.radiusLg),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -370,7 +366,7 @@ fun StandaloneScoreboardScreen(
                             text = if (match.servingTeam == TeamId.TEAM_B) "+1 Point (Serving)" else "Side-out / Fault",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4E1400)
+                            color = tokens.onTeamB
                         )
                     }
                 }
@@ -390,10 +386,10 @@ fun StandaloneScoreboardScreen(
                     .height(48.dp)
                     .testTag("standalone_undo_button"),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF263300),
-                    contentColor = PickleballLime
+                    containerColor = tokens.surfaceInset,
+                    contentColor = tokens.textAccent
                 ),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(tokens.radiusSm)
             ) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
                 Spacer(modifier = Modifier.width(6.dp))
