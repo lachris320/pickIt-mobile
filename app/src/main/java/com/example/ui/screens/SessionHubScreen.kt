@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -154,9 +155,11 @@ fun SessionHubScreen(
                     )
                 }
 
-                items(recommendations.values.toList()) { rec ->
+                val sortedRecs = recommendations.values.sortedBy { it.courtId }
+                itemsIndexed(sortedRecs) { index, rec ->
                     RecommendationCard(
                         recommendation = rec,
+                        isPrimary = (index == 0),
                         onCallAndStart = { viewModel.confirmRecommendation(rec.courtId) },
                         onSwapPartners = { viewModel.swapRecommendationPartners(rec.courtId) },
                         onRestPlayer = { playerId -> viewModel.togglePlayerRest(playerId) }

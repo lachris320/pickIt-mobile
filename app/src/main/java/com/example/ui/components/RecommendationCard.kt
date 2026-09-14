@@ -28,6 +28,7 @@ fun RecommendationCard(
     onCallAndStart: () -> Unit,
     onSwapPartners: () -> Unit,
     onRestPlayer: (String) -> Unit,
+    isPrimary: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var expandedWhy by remember { mutableStateOf(false) }
@@ -35,7 +36,11 @@ fun RecommendationCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(2.dp, PickleballLime, RoundedCornerShape(16.dp))
+            .border(
+                2.dp,
+                if (isPrimary) LocalPickItTokens.current.accent else LocalPickItTokens.current.border,
+                RoundedCornerShape(16.dp)
+            )
             .testTag("recommendation_card_${recommendation.courtId}"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = PickleballCardSurface)
@@ -111,13 +116,13 @@ fun RecommendationCard(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
                                     onClick = { onRestPlayer(recommendation.teamA.player1.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamA.player1.id}")
+                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamA.player1.id}")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Bedtime,
                                         contentDescription = "Rest ${recommendation.teamA.player1.name}",
                                         tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
@@ -131,13 +136,13 @@ fun RecommendationCard(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
                                     onClick = { onRestPlayer(recommendation.teamA.player2.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamA.player2.id}")
+                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamA.player2.id}")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Bedtime,
                                         contentDescription = "Rest ${recommendation.teamA.player2.name}",
                                         tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
@@ -164,13 +169,13 @@ fun RecommendationCard(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
                                     onClick = { onRestPlayer(recommendation.teamB.player1.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamB.player1.id}")
+                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamB.player1.id}")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Bedtime,
                                         contentDescription = "Rest ${recommendation.teamB.player1.name}",
                                         tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -184,13 +189,13 @@ fun RecommendationCard(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
                                     onClick = { onRestPlayer(recommendation.teamB.player2.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamB.player2.id}")
+                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamB.player2.id}")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Bedtime,
                                         contentDescription = "Rest ${recommendation.teamB.player2.name}",
                                         tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -253,30 +258,51 @@ fun RecommendationCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Primary Action: CALL & START MATCH (Big 56dp+ height)
-            Button(
-                onClick = onCallAndStart,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("call_and_start_button_${recommendation.courtId}"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PickleballLime,
-                    contentColor = Color(0xFF1B3700)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Campaign,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "CALL & START COURT ${recommendation.courtId}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            // Primary action — exactly one lime CTA per Hub (the next ready court).
+            // The primary card fills lime and carries the primary_call_button tag; any
+            // additional ready courts render a neutral "Call" so a single standout survives.
+            if (isPrimary) {
+                Box(modifier = Modifier.testTag("primary_call_button")) {
+                    Button(
+                        onClick = onCallAndStart,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("call_and_start_button_${recommendation.courtId}"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LocalPickItTokens.current.accent,
+                            contentColor = LocalPickItTokens.current.onAccent
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Campaign,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Call & start court ${recommendation.courtId}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onCallAndStart,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("call_and_start_button_${recommendation.courtId}"),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Call court ${recommendation.courtId}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
