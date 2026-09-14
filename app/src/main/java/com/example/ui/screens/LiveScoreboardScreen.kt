@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.*
@@ -40,18 +41,20 @@ fun LiveScoreboardScreen(
     val session by viewModel.session.collectAsState()
     val court = session?.courts?.find { it.id == courtId }
     val match = court?.currentMatch
+    val tokens = LocalPickItTokens.current
 
     var showFinalScoreSheet by remember { mutableStateOf(false) }
+    var showAbandonDialog by remember { mutableStateOf(false) }
 
     if (match == null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(CanvasDark),
+                .background(tokens.canvas),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("No active match on Court $courtId", color = WhiteHighContrast)
+                Text("No active match on Court $courtId", color = tokens.textPrimary)
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(onClick = { viewModel.navigateTo(AppScreen.SessionHub) }) {
                     Text("Back to Hub")
@@ -79,15 +82,15 @@ fun LiveScoreboardScreen(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "COURT ${match.courtId}",
+                                text = "Court ${match.courtId}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = WhiteHighContrast
+                                color = tokens.textPrimary
                             )
                             if (isTeamAMatchPoint || isTeamBMatchPoint) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
-                                    color = Color(0xFFD32F2F),
+                                    color = tokens.textDanger,
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
@@ -103,7 +106,7 @@ fun LiveScoreboardScreen(
                         Text(
                             text = "Target: ${match.targetScore} (Win by 2)",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
+                            color = tokens.textSecondary
                         )
                     }
                 },
@@ -115,7 +118,7 @@ fun LiveScoreboardScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = WhiteHighContrast
+                            tint = tokens.textPrimary
                         )
                     }
                 },
@@ -124,13 +127,13 @@ fun LiveScoreboardScreen(
                         onClick = { showFinalScoreSheet = true },
                         modifier = Modifier.testTag("direct_final_score_button")
                     ) {
-                        Text("Finalize", color = PickleballLime, fontWeight = FontWeight.Bold)
+                        Text("Finalize", color = tokens.textAccent, fontWeight = FontWeight.Bold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CanvasDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = tokens.canvas)
             )
         },
-        containerColor = CanvasDark
+        containerColor = tokens.canvas
     ) { innerPadding ->
         Column(
             modifier = modifier
@@ -141,9 +144,9 @@ fun LiveScoreboardScreen(
         ) {
             // Section 1: Secondary Pickleball Context Bar
             Surface(
-                color = PickleballCardSurface,
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PickleballCardBorder),
+                color = tokens.surfaceElevated,
+                shape = RoundedCornerShape(tokens.radiusMd),
+                border = androidx.compose.foundation.BorderStroke(1.dp, tokens.border),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -157,14 +160,13 @@ fun LiveScoreboardScreen(
                         Text(
                             text = "OFFICIAL CALLOUT",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Text(
                             text = match.calloutString(),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Black,
-                            color = PickleballLime
+                            color = tokens.textAccent
                         )
                     }
 
@@ -172,14 +174,13 @@ fun LiveScoreboardScreen(
                         Text(
                             text = "SERVING SIDE",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Text(
-                            text = "${match.servingSide.name} COURT",
+                            text = "${match.servingSide.name.lowercase().replaceFirstChar { it.uppercase() }} Court",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = WhiteHighContrast
+                            color = tokens.textPrimary
                         )
                     }
 
@@ -187,14 +188,13 @@ fun LiveScoreboardScreen(
                         Text(
                             text = "SERVER (SERVER ${match.serverNumber})",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 9.sp
+                            color = tokens.textSecondary
                         )
                         Text(
                             text = match.currentServer.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (match.servingTeam == TeamId.TEAM_A) TeamAColor else TeamBColor
+                            color = if (match.servingTeam == TeamId.TEAM_A) tokens.teamA else tokens.teamB
                         )
                     }
                 }
@@ -209,11 +209,11 @@ fun LiveScoreboardScreen(
 
             // Section 3: High-Visibility Primary Scoreboard Display
             Surface(
-                color = Color(0xFF141D17),
-                shape = RoundedCornerShape(16.dp),
+                color = tokens.surfaceInset,
+                shape = RoundedCornerShape(tokens.radiusLg),
                 border = androidx.compose.foundation.BorderStroke(
                     2.dp,
-                    if (match.isCompleted) PickleballLime else PickleballCardBorder
+                    if (match.isCompleted) tokens.accent else tokens.border
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -235,17 +235,17 @@ fun LiveScoreboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (match.servingTeam == TeamId.TEAM_A) {
                                 Surface(
-                                    color = PickleballLime,
+                                    color = tokens.accent,
                                     shape = CircleShape,
                                     modifier = Modifier.size(10.dp)
                                 ) {}
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(
-                                text = "TEAM A",
+                                text = "Team A",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TeamAColor
+                                color = tokens.teamA
                             )
                         }
 
@@ -262,9 +262,7 @@ fun LiveScoreboardScreen(
                             Text(
                                 text = "$targetScore",
                                 style = MaterialTheme.typography.displayLarge,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 68.sp,
-                                color = WhiteHighContrast,
+                                color = tokens.textPrimary,
                                 modifier = Modifier.testTag("team_a_score_display")
                             )
                         }
@@ -272,8 +270,9 @@ fun LiveScoreboardScreen(
                         Text(
                             text = match.teamA.playerNames(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted,
-                            maxLines = 1
+                            color = tokens.textSecondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -282,7 +281,7 @@ fun LiveScoreboardScreen(
                         modifier = Modifier
                             .width(2.dp)
                             .height(80.dp)
-                            .background(PickleballCardBorder)
+                            .background(tokens.border)
                     )
 
                     // Team B Column
@@ -294,17 +293,17 @@ fun LiveScoreboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (match.servingTeam == TeamId.TEAM_B) {
                                 Surface(
-                                    color = PickleballLime,
+                                    color = tokens.accent,
                                     shape = CircleShape,
                                     modifier = Modifier.size(10.dp)
                                 ) {}
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(
-                                text = "TEAM B",
+                                text = "Team B",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TeamBColor
+                                color = tokens.teamB
                             )
                         }
 
@@ -321,9 +320,7 @@ fun LiveScoreboardScreen(
                             Text(
                                 text = "$targetScore",
                                 style = MaterialTheme.typography.displayLarge,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 68.sp,
-                                color = WhiteHighContrast,
+                                color = tokens.textPrimary,
                                 modifier = Modifier.testTag("team_b_score_display")
                             )
                         }
@@ -331,8 +328,9 @@ fun LiveScoreboardScreen(
                         Text(
                             text = match.teamB.playerNames(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted,
-                            maxLines = 1
+                            color = tokens.textSecondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -344,8 +342,8 @@ fun LiveScoreboardScreen(
             val lastRally = match.rallyHistory.lastOrNull()
             if (lastRally != null) {
                 Surface(
-                    color = Color(0xFF16211A),
-                    shape = RoundedCornerShape(8.dp),
+                    color = tokens.surfaceInset,
+                    shape = RoundedCornerShape(tokens.radiusSm),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -358,19 +356,19 @@ fun LiveScoreboardScreen(
                         Text(
                             text = "Rally #${lastRally.rallyIndex}: ${lastRally.description}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (lastRally.isSideOut) CourtAttentionAmber else PickleballLime,
+                            color = if (lastRally.isSideOut) tokens.attention else tokens.textAccent,
                             fontWeight = FontWeight.SemiBold
                         )
                         if (lastRally.isSideOut) {
                             Surface(
-                                color = CourtAttentionAmber.copy(alpha = 0.2f),
+                                color = tokens.attention.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
                                     text = "SIDE OUT",
-                                    fontSize = 9.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = CourtAttentionAmber,
+                                    color = tokens.attention,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
@@ -404,15 +402,15 @@ fun LiveScoreboardScreen(
                         .weight(1f)
                         .testTag("team_a_won_rally_button"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = TeamAColor,
-                        contentColor = Color.Black
+                        containerColor = tokens.teamA,
+                        contentColor = tokens.onTeamA
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(tokens.radiusLg),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${match.teamA.playerNames()} WON RALLY",
+                            text = "${match.teamA.playerNames()} won rally",
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp
                         )
@@ -420,7 +418,7 @@ fun LiveScoreboardScreen(
                             text = if (match.servingTeam == TeamId.TEAM_A) "+1 Point (Serving)" else "Side-out / Fault",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00363A)
+                            color = tokens.onTeamA
                         )
                     }
                 }
@@ -441,15 +439,15 @@ fun LiveScoreboardScreen(
                         .weight(1f)
                         .testTag("team_b_won_rally_button"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = TeamBColor,
-                        contentColor = Color.Black
+                        containerColor = tokens.teamB,
+                        contentColor = tokens.onTeamB
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(tokens.radiusLg),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${match.teamB.playerNames()} WON RALLY",
+                            text = "${match.teamB.playerNames()} won rally",
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp
                         )
@@ -457,7 +455,7 @@ fun LiveScoreboardScreen(
                             text = if (match.servingTeam == TeamId.TEAM_B) "+1 Point (Serving)" else "Side-out / Fault",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4E1400)
+                            color = tokens.onTeamB
                         )
                     }
                 }
@@ -480,7 +478,7 @@ fun LiveScoreboardScreen(
                     modifier = Modifier
                         .height(48.dp)
                         .testTag("undo_rally_button"),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(tokens.radiusSm)
                 ) {
                     Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
                     Spacer(modifier = Modifier.width(6.dp))
@@ -488,10 +486,10 @@ fun LiveScoreboardScreen(
                 }
 
                 TextButton(
-                    onClick = { viewModel.abandonMatch(courtId) },
+                    onClick = { showAbandonDialog = true },
                     modifier = Modifier.testTag("abandon_match_button")
                 ) {
-                    Text("Abandon Match", color = Color(0xFFEF5350))
+                    Text("Abandon match", color = tokens.textDanger)
                 }
             }
         }
@@ -502,13 +500,13 @@ fun LiveScoreboardScreen(
         AlertDialog(
             onDismissRequest = { /* Require action */ },
             title = {
-                Text("MATCH COMPLETED!", fontWeight = FontWeight.Bold, color = PickleballLime)
+                Text("Match completed!", fontWeight = FontWeight.Bold, color = tokens.textAccent)
             },
             text = {
                 val winnerNames = if (match.winnerTeamId == TeamId.TEAM_A) match.teamA.playerNames() else match.teamB.playerNames()
                 Text(
                     text = "$winnerNames won with final score ${match.scoreA} - ${match.scoreB}.\nProceed to rotate the court?",
-                    color = WhiteHighContrast
+                    color = tokens.textPrimary
                 )
             },
             confirmButton = {
@@ -516,7 +514,7 @@ fun LiveScoreboardScreen(
                     onClick = {
                         viewModel.completeMatch(match.courtId, match.scoreA, match.scoreB)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = PickleballLime, contentColor = Color(0xFF1B3700)),
+                    colors = ButtonDefaults.buttonColors(containerColor = tokens.accent, contentColor = tokens.onAccent),
                     modifier = Modifier.testTag("confirm_match_completion_button")
                 ) {
                     Text("Generate Rotation & Return to Hub", fontWeight = FontWeight.Bold)
@@ -530,7 +528,47 @@ fun LiveScoreboardScreen(
                     Text("Undo Last Rally")
                 }
             },
-            containerColor = PickleballCardSurface
+            containerColor = tokens.surfaceElevated
+        )
+    }
+
+    // Abandon-match confirmation (destructive action requires confirmation)
+    if (showAbandonDialog) {
+        AlertDialog(
+            onDismissRequest = { showAbandonDialog = false },
+            title = {
+                Text("Abandon match?", fontWeight = FontWeight.Bold, color = tokens.textPrimary)
+            },
+            text = {
+                Text(
+                    "This ends the match with no result and returns both teams to the queue.",
+                    color = tokens.textSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showAbandonDialog = false
+                        viewModel.abandonMatch(courtId)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = tokens.textDanger,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.testTag("confirm_abandon_button")
+                ) {
+                    Text("Abandon", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showAbandonDialog = false },
+                    modifier = Modifier.testTag("dismiss_abandon_button")
+                ) {
+                    Text("Keep playing")
+                }
+            },
+            containerColor = tokens.surfaceElevated
         )
     }
 

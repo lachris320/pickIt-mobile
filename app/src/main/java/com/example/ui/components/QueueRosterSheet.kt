@@ -31,6 +31,7 @@ fun QueueRosterSheet(
     onMovePlayer: (from: Int, to: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val tokens = LocalPickItTokens.current
     var newPlayerName by remember { mutableStateOf("") }
 
     val waitingQueue = roster.filter { it.status == ParticipantStatus.AVAILABLE }
@@ -39,7 +40,7 @@ fun QueueRosterSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = PickleballDarkCourt
+        containerColor = tokens.surfaceInset
     ) {
         Column(
             modifier = Modifier
@@ -54,15 +55,15 @@ fun QueueRosterSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "DIGITAL PADDLE QUEUE",
+                    text = "Digital paddle queue",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = WhiteHighContrast
+                    color = tokens.textPrimary
                 )
                 Text(
                     text = "${waitingQueue.size} in queue • ${restingPlayers.size} resting",
                     style = MaterialTheme.typography.labelSmall,
-                    color = PickleballLime
+                    color = tokens.textAccent
                 )
             }
 
@@ -79,10 +80,10 @@ fun QueueRosterSheet(
                     placeholder = { Text("Enter player name...") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = WhiteHighContrast,
-                        unfocusedTextColor = WhiteHighContrast,
-                        focusedBorderColor = PickleballLime,
-                        unfocusedBorderColor = PickleballCardBorder
+                        focusedTextColor = tokens.textPrimary,
+                        unfocusedTextColor = tokens.textPrimary,
+                        focusedBorderColor = tokens.accent,
+                        unfocusedBorderColor = tokens.border
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -97,8 +98,8 @@ fun QueueRosterSheet(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PickleballLime,
-                        contentColor = Color(0xFF1B3700)
+                        containerColor = tokens.accent,
+                        contentColor = tokens.onAccent
                     ),
                     modifier = Modifier
                         .height(56.dp)
@@ -122,10 +123,10 @@ fun QueueRosterSheet(
                 // Section 1: Active Waiting Queue
                 item {
                     Text(
-                        text = "WAITING QUEUE (FIFO PRIORITY)",
+                        text = "Waiting queue (FIFO priority)",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = TextMuted
+                        color = tokens.textSecondary
                     )
                 }
 
@@ -134,7 +135,7 @@ fun QueueRosterSheet(
                         Text(
                             text = "Queue is empty. Arriving players will be added here.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted,
+                            color = tokens.textSecondary,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
@@ -156,10 +157,10 @@ fun QueueRosterSheet(
                     item {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "RESTING / PAUSED (SKIPPED FOR INTAKE)",
+                            text = "Resting / paused (skipped for intake)",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = CourtAttentionAmber
+                            color = tokens.attention
                         )
                     }
 
@@ -192,10 +193,11 @@ private fun QueueItemCard(
     onMoveUp: (() -> Unit)?,
     onMoveDown: (() -> Unit)?
 ) {
+    val tokens = LocalPickItTokens.current
     Surface(
-        color = PickleballCardSurface,
-        shape = RoundedCornerShape(10.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, PickleballCardBorder),
+        color = tokens.surfaceElevated,
+        shape = RoundedCornerShape(tokens.radiusSm),
+        border = androidx.compose.foundation.BorderStroke(1.dp, tokens.border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -210,13 +212,13 @@ private fun QueueItemCard(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(24.dp)
-                        .background(PickleballLime, RoundedCornerShape(6.dp))
+                        .background(tokens.accent, RoundedCornerShape(6.dp))
                 ) {
                     Text(
                         text = "#$queueNumber",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1B3700),
+                        color = tokens.onAccent,
                         fontSize = 11.sp
                     )
                 }
@@ -226,12 +228,12 @@ private fun QueueItemCard(
                         text = player.name,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = WhiteHighContrast
+                        color = tokens.textPrimary
                     )
                     Text(
                         text = "${player.matchesPlayed} games played today",
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextMuted
+                        color = tokens.textSecondary
                     )
                 }
             }
@@ -240,19 +242,19 @@ private fun QueueItemCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (onMoveUp != null) {
                     IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = TextMuted)
+                        Icon(imageVector = Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = tokens.textSecondary)
                     }
                 }
                 if (onMoveDown != null) {
                     IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = TextMuted)
+                        Icon(imageVector = Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = tokens.textSecondary)
                     }
                 }
 
                 FilledTonalButton(
                     onClick = onToggleRest,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(tokens.radiusSm),
                     modifier = Modifier.height(32.dp)
                 ) {
                     Icon(imageVector = Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -261,7 +263,7 @@ private fun QueueItemCard(
                 }
 
                 IconButton(onClick = onCheckOut, modifier = Modifier.size(32.dp)) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Check out", tint = Color(0xFFE57373))
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Check out", tint = tokens.textDanger)
                 }
             }
         }
@@ -274,10 +276,11 @@ private fun RestingItemCard(
     onResume: () -> Unit,
     onCheckOut: () -> Unit
 ) {
+    val tokens = LocalPickItTokens.current
     Surface(
-        color = Color(0xFF211D15),
-        shape = RoundedCornerShape(10.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, CourtAttentionAmber.copy(alpha = 0.4f)),
+        color = tokens.surfaceInset,
+        shape = RoundedCornerShape(tokens.radiusSm),
+        border = androidx.compose.foundation.BorderStroke(1.dp, tokens.attention.copy(alpha = 0.4f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -288,19 +291,19 @@ private fun RestingItemCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.PauseCircle, contentDescription = null, tint = CourtAttentionAmber)
+                Icon(imageVector = Icons.Default.PauseCircle, contentDescription = null, tint = tokens.attention)
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
                         text = player.name,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = WhiteHighContrast
+                        color = tokens.textPrimary
                     )
                     Text(
                         text = "Resting • Preserving seniority",
                         style = MaterialTheme.typography.labelSmall,
-                        color = CourtAttentionAmber
+                        color = tokens.attention
                     )
                 }
             }
@@ -309,11 +312,11 @@ private fun RestingItemCard(
                 Button(
                     onClick = onResume,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CourtAvailableGreen,
+                        containerColor = tokens.statusOpen,
                         contentColor = Color.Black
                     ),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(tokens.radiusSm),
                     modifier = Modifier.height(32.dp)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -321,7 +324,7 @@ private fun RestingItemCard(
                     Text("Resume", fontSize = 12.sp)
                 }
                 IconButton(onClick = onCheckOut, modifier = Modifier.size(32.dp)) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Check out", tint = Color(0xFFE57373))
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Check out", tint = tokens.textDanger)
                 }
             }
         }
@@ -330,17 +333,18 @@ private fun RestingItemCard(
 
 @Composable
 private fun ParticipationSummaryCard(roster: List<Player>) {
+    val tokens = LocalPickItTokens.current
     Surface(
-        color = Color(0xFF141D17),
-        shape = RoundedCornerShape(10.dp),
+        color = tokens.surfaceInset,
+        shape = RoundedCornerShape(tokens.radiusSm),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = "PARTICIPATION PARITY AUDIT",
+                text = "Participation parity audit",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = PickleballLime
+                color = tokens.textAccent
             )
             Spacer(modifier = Modifier.height(4.dp))
             val avg = if (roster.isNotEmpty()) roster.map { it.matchesPlayed }.average() else 0.0
@@ -349,7 +353,7 @@ private fun ParticipationSummaryCard(roster: List<Player>) {
             Text(
                 text = "Average Games Played: %.1f • Range: %d to %d games".format(avg, min, max),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+                color = tokens.textSecondary
             )
         }
     }

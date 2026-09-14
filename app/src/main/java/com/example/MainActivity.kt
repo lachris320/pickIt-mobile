@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -17,7 +18,6 @@ import com.example.ui.screens.LiveScoreboardScreen
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.screens.SetupScreen
 import com.example.ui.screens.StandaloneScoreboardScreen
-import com.example.ui.theme.CanvasDark
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.AppScreen
 import com.example.viewmodel.SessionViewModel
@@ -31,12 +31,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MyApplicationTheme {
+            val themeMode by sessionViewModel.themeMode.collectAsState()
+            MyApplicationTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
                         .safeDrawingPadding(),
-                    color = CanvasDark
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     PickleballAppContent(viewModel = sessionViewModel)
                 }

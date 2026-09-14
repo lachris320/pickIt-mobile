@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,29 +28,26 @@ fun SetupScreen(
     viewModel: SessionViewModel,
     modifier: Modifier = Modifier
 ) {
-    var sessionName by remember { mutableStateOf("Saturday Morning Open Play") }
+    var sessionName by remember { mutableStateOf("") }
     var courtCount by remember { mutableIntStateOf(3) }
     var rotationPolicy by remember { mutableStateOf(RotationPolicy.FOUR_OFF_FOUR_ON) }
 
-    val selectedPlayers = remember {
-        mutableStateListOf(
-            "Alice M.", "Bob T.", "Charlie D.", "Dave K.",
-            "Frank L.", "Grace H.", "Henry P.", "Ivy W.",
-            "Ken S.", "Elena R.", "Tom H.", "Sarah B."
-        )
-    }
+    // Roster starts empty so the organizer builds their own; "Load sample players"
+    // seeds demo/testing names without contaminating real operational state.
+    val selectedPlayers = remember { mutableStateListOf<String>() }
 
     var customPlayerInput by remember { mutableStateOf("") }
+    val tokens = LocalPickItTokens.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "NEW OPEN PLAY SESSION",
+                        text = "New open play session",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = WhiteHighContrast
+                        color = tokens.textPrimary
                     )
                 },
                 navigationIcon = {
@@ -62,14 +58,49 @@ fun SetupScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = WhiteHighContrast
+                            tint = tokens.textPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CanvasDark)
+                actions = {
+                    // App-level appearance preference — peripheral and clearly secondary,
+                    // so it never competes with the Launch session button.
+                    var menuOpen by remember { mutableStateOf(false) }
+                    IconButton(
+                        onClick = { menuOpen = true },
+                        modifier = Modifier.testTag("appearance_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BrightnessMedium,
+                            contentDescription = "Appearance",
+                            tint = tokens.textSecondary
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        ThemeMode.values().forEach { mode ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        when (mode) {
+                                            ThemeMode.DARK -> "Dark"
+                                            ThemeMode.LIGHT -> "Light"
+                                            ThemeMode.SYSTEM -> "Follow system"
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.setThemeMode(mode)
+                                    menuOpen = false
+                                },
+                                modifier = Modifier.testTag("appearance_option_${mode.name}")
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = tokens.canvas)
             )
         },
-        containerColor = CanvasDark
+        containerColor = tokens.canvas
     ) { innerPadding ->
         LazyColumn(
             modifier = modifier
@@ -85,18 +116,19 @@ fun SetupScreen(
                     text = "SESSION NAME",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = PickleballLime
+                    color = tokens.textAccent
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = sessionName,
                     onValueChange = { sessionName = it },
                     singleLine = true,
+                    placeholder = { Text("Saturday Open Play") },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = WhiteHighContrast,
-                        unfocusedTextColor = WhiteHighContrast,
-                        focusedBorderColor = PickleballLime,
-                        unfocusedBorderColor = PickleballCardBorder
+                        focusedTextColor = tokens.textPrimary,
+                        unfocusedTextColor = tokens.textPrimary,
+                        focusedBorderColor = tokens.accent,
+                        unfocusedBorderColor = tokens.border
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -110,7 +142,7 @@ fun SetupScreen(
                     text = "NUMBER OF COURTS AVAILABLE",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = PickleballLime
+                    color = tokens.textAccent
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -122,19 +154,27 @@ fun SetupScreen(
                         Button(
                             onClick = { courtCount = count },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) PickleballLime else PickleballCardSurface,
-                                contentColor = if (isSelected) Color(0xFF1B3700) else WhiteHighContrast
+                                containerColor = if (isSelected) tokens.accent else tokens.surfaceElevated,
+                                contentColor = if (isSelected) tokens.onAccent else tokens.textPrimary
                             ),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isSelected) PickleballLime else PickleballCardBorder
+                                if (isSelected) tokens.accent else tokens.border
                             ),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(tokens.radiusSm),
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp)
                                 .testTag("setup_court_count_$count")
                         ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
                             Text(text = "$count", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
@@ -147,7 +187,7 @@ fun SetupScreen(
                     text = "ROTATION SYSTEM POLICY",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = PickleballLime
+                    color = tokens.textAccent
                 )
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -155,11 +195,11 @@ fun SetupScreen(
                     val isSelected = (rotationPolicy == policy)
                     Surface(
                         onClick = { rotationPolicy = policy },
-                        color = if (isSelected) Color(0xFF1D2920) else PickleballCardSurface,
-                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) tokens.surfaceInset else tokens.surfaceElevated,
+                        shape = RoundedCornerShape(tokens.radiusMd),
                         border = androidx.compose.foundation.BorderStroke(
                             2.dp,
-                            if (isSelected) PickleballLime else PickleballCardBorder
+                            if (isSelected) tokens.accent else tokens.border
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -173,7 +213,7 @@ fun SetupScreen(
                             RadioButton(
                                 selected = isSelected,
                                 onClick = { rotationPolicy = policy },
-                                colors = RadioButtonDefaults.colors(selectedColor = PickleballLime)
+                                colors = RadioButtonDefaults.colors(selectedColor = tokens.accent)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
@@ -181,12 +221,12 @@ fun SetupScreen(
                                     text = policy.displayName,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = WhiteHighContrast
+                                    color = tokens.textPrimary
                                 )
                                 Text(
                                     text = policy.description,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = TextMuted
+                                    color = tokens.textSecondary
                                 )
                             }
                         }
@@ -200,7 +240,7 @@ fun SetupScreen(
                     text = "PLAYER ROSTER (${selectedPlayers.size} PLAYERS)",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = PickleballLime
+                    color = tokens.textAccent
                 )
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -211,10 +251,10 @@ fun SetupScreen(
                         placeholder = { Text("Add custom player...") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = WhiteHighContrast,
-                            unfocusedTextColor = WhiteHighContrast,
-                            focusedBorderColor = PickleballLime,
-                            unfocusedBorderColor = PickleballCardBorder
+                            focusedTextColor = tokens.textPrimary,
+                            unfocusedTextColor = tokens.textPrimary,
+                            focusedBorderColor = tokens.accent,
+                            unfocusedBorderColor = tokens.border
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -229,8 +269,8 @@ fun SetupScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PickleballLime,
-                            contentColor = Color(0xFF1B3700)
+                            containerColor = tokens.accent,
+                            contentColor = tokens.onAccent
                         ),
                         modifier = Modifier
                             .height(56.dp)
@@ -238,6 +278,17 @@ fun SetupScreen(
                     ) {
                         Text("Add")
                     }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (selectedPlayers.isEmpty()) {
+                            selectedPlayers.addAll(viewModel.frequentPlayers.take(12))
+                        }
+                    },
+                    modifier = Modifier.testTag("load_sample_players_button")
+                ) {
+                    Text("Load sample players")
                 }
             }
 
@@ -253,6 +304,7 @@ fun SetupScreen(
                             selected = true,
                             onClick = { selectedPlayers.removeAt(index) },
                             label = { Text(player) },
+                            modifier = Modifier.testTag("roster_chip"),
                             trailingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -282,15 +334,15 @@ fun SetupScreen(
                         .height(56.dp)
                         .testTag("launch_session_button"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PickleballLime,
-                        contentColor = Color(0xFF1B3700)
+                        containerColor = tokens.accent,
+                        contentColor = tokens.onAccent
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(tokens.radiusMd)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "INITIALIZE & LAUNCH SESSION",
+                        text = "Launch session",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )

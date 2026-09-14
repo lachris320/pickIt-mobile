@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,10 +24,11 @@ fun OnDeckHorizonBar(
     onDeckPlayers: List<Player>,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalPickItTokens.current
     Surface(
-        color = Color(0xFF141D17),
-        shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, PickleballCardBorder),
+        color = tokens.surfaceInset,
+        shape = RoundedCornerShape(tokens.radiusMd),
+        border = androidx.compose.foundation.BorderStroke(1.dp, tokens.border),
         modifier = modifier
             .fillMaxWidth()
             .testTag("on_deck_horizon_bar")
@@ -43,22 +43,22 @@ fun OnDeckHorizonBar(
                     Icon(
                         imageVector = Icons.Default.NotificationsActive,
                         contentDescription = null,
-                        tint = PickleballLime,
+                        tint = tokens.textAccent,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "ON DECK (NEXT UP FOR COURT)",
+                        text = "On deck (next up for court)",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = PickleballLime
+                        color = tokens.textAccent
                     )
                 }
 
                 Text(
                     text = "${onDeckPlayers.size} warming up",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted
+                    color = tokens.textSecondary
                 )
             }
 
@@ -68,7 +68,7 @@ fun OnDeckHorizonBar(
                 Text(
                     text = "No players currently waiting in queue.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
+                    color = tokens.textSecondary
                 )
             } else {
                 LazyRow(
@@ -77,9 +77,9 @@ fun OnDeckHorizonBar(
                 ) {
                     itemsIndexed(onDeckPlayers) { index, player ->
                         Surface(
-                            color = Color(0xFF1F2B23),
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334539))
+                            color = tokens.surfaceInset,
+                            shape = RoundedCornerShape(tokens.radiusSm),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, tokens.border)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -89,13 +89,13 @@ fun OnDeckHorizonBar(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
                                         .size(20.dp)
-                                        .background(PickleballLime, RoundedCornerShape(10.dp))
+                                        .background(tokens.accent, RoundedCornerShape(10.dp))
                                 ) {
                                     Text(
                                         text = "${index + 1}",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1B3700),
+                                        color = tokens.onAccent,
                                         fontSize = 11.sp
                                     )
                                 }
@@ -105,13 +105,12 @@ fun OnDeckHorizonBar(
                                         text = player.name,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = WhiteHighContrast
+                                        color = tokens.textPrimary
                                     )
                                     Text(
                                         text = "${player.matchesPlayed} games today",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = TextMuted,
-                                        fontSize = 10.sp
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = tokens.textSecondary
                                     )
                                 }
                             }

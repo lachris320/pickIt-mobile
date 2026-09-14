@@ -63,6 +63,17 @@ android {
   }
 }
 
+// Local Robolectric fix: on Windows behind a TLS-intercepting proxy (e.g. a campus
+// network), Robolectric's Maven fetcher can't validate the proxy's cert with the JDK
+// cacerts, failing test bootstrap with PKIX/SunCertPathBuilderException. Use the Windows
+// certificate store, which already trusts the proxy CA. Guarded to Windows so the Linux
+// CI (and non-Windows machines) are unaffected.
+tasks.withType<Test>().configureEach {
+  if (System.getProperty("os.name").startsWith("Windows")) {
+    systemProperty("javax.net.ssl.trustStoreType", "WINDOWS-ROOT")
+  }
+}
+
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
 // to match the convention used in Web projects.
 secrets {

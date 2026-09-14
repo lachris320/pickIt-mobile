@@ -34,5 +34,14 @@ abstract class PickleballDatabase : RoomDatabase() {
                 instance
             }
         }
+
+        /** Test-only: close and clear the singleton so a test can start from a clean database. */
+        @androidx.annotation.VisibleForTesting
+        fun resetInstanceForTest() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 }

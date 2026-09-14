@@ -3,7 +3,6 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,13 +13,32 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.Player
 import com.example.model.RotationRecommendation
 import com.example.ui.theme.*
+
+@Composable
+private fun RestPlayerButton(
+    player: Player,
+    tint: androidx.compose.ui.graphics.Color,
+    onRestPlayer: (String) -> Unit,
+) {
+    IconButton(
+        onClick = { onRestPlayer(player.id) },
+        modifier = Modifier.size(48.dp).testTag("rest_rec_player_${player.id}")
+    ) {
+        Icon(
+            imageVector = Icons.Default.Bedtime,
+            contentDescription = "Rest ${player.name}",
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
 
 @Composable
 fun RecommendationCard(
@@ -28,24 +46,30 @@ fun RecommendationCard(
     onCallAndStart: () -> Unit,
     onSwapPartners: () -> Unit,
     onRestPlayer: (String) -> Unit,
+    isPrimary: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var expandedWhy by remember { mutableStateOf(false) }
+    val tokens = LocalPickItTokens.current
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(2.dp, PickleballLime, RoundedCornerShape(16.dp))
+            .border(
+                2.dp,
+                if (isPrimary) tokens.accent else tokens.border,
+                RoundedCornerShape(tokens.radiusLg)
+            )
             .testTag("recommendation_card_${recommendation.courtId}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = PickleballCardSurface)
+        shape = RoundedCornerShape(tokens.radiusLg),
+        colors = CardDefaults.cardColors(containerColor = tokens.surfaceElevated)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header
+            // Header — one amber attention state (dot + label), reserved per von-Restorff
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -56,20 +80,20 @@ fun RecommendationCard(
                         modifier = Modifier
                             .size(12.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(CourtAttentionAmber)
+                            .background(tokens.attention)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "ACTION REQUIRED: COURT ${recommendation.courtId} READY",
+                        text = "Court ${recommendation.courtId} ready",
                         style = MaterialTheme.typography.labelLarge,
-                        color = CourtAttentionAmber,
+                        color = tokens.attention,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
                 AssistChip(
                     onClick = { expandedWhy = !expandedWhy },
-                    label = { Text(if (expandedWhy) "Hide Why" else "Why?") },
+                    label = { Text(if (expandedWhy) "Hide why" else "Why?") },
                     leadingIcon = {
                         Icon(
                             imageVector = if (expandedWhy) Icons.Default.ExpandLess else Icons.AutoMirrored.Filled.HelpOutline,
@@ -84,8 +108,8 @@ fun RecommendationCard(
 
             // Matchup Display (Glanceable)
             Surface(
-                color = Color(0xFF141C17),
-                shape = RoundedCornerShape(12.dp),
+                color = tokens.surfaceInset,
+                shape = RoundedCornerShape(tokens.radiusMd),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -98,7 +122,7 @@ fun RecommendationCard(
                             Text(
                                 text = "TEAM A",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TeamAColor,
+                                color = tokens.teamA,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -106,47 +130,35 @@ fun RecommendationCard(
                                     text = recommendation.teamA.player1.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = WhiteHighContrast
+                                    color = tokens.textPrimary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamA.player1.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamA.player1.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamA.player1.name}",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamA.player1,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = recommendation.teamA.player2.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = WhiteHighContrast
+                                    color = tokens.textPrimary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamA.player2.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamA.player2.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamA.player2.name}",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamA.player2,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                             }
                         }
 
                         Text(
-                            text = "VS",
+                            text = "vs",
                             style = MaterialTheme.typography.labelMedium,
-                            color = TextMuted,
+                            color = tokens.textSecondary,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
@@ -158,47 +170,35 @@ fun RecommendationCard(
                             Text(
                                 text = "TEAM B",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TeamBColor,
+                                color = tokens.teamB,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamB.player1.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamB.player1.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamB.player1.name}",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamB.player1,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = recommendation.teamB.player1.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = WhiteHighContrast
+                                    color = tokens.textPrimary
                                 )
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamB.player2.id) },
-                                    modifier = Modifier.size(24.dp).testTag("rest_rec_player_${recommendation.teamB.player2.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamB.player2.name}",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamB.player2,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = recommendation.teamB.player2.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = WhiteHighContrast
+                                    color = tokens.textPrimary
                                 )
                             }
                         }
@@ -208,7 +208,7 @@ fun RecommendationCard(
                     Text(
                         text = "Reason: ${recommendation.primaryReason}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = PickleballLime
+                        color = tokens.textAccent
                     )
 
                     if (recommendation.warningMessage != null) {
@@ -216,7 +216,7 @@ fun RecommendationCard(
                         Text(
                             text = recommendation.warningMessage,
                             style = MaterialTheme.typography.bodySmall,
-                            color = CourtAttentionAmber
+                            color = tokens.attention
                         )
                     }
                 }
@@ -228,23 +228,23 @@ fun RecommendationCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp)
-                        .background(Color(0xFF0F1713), RoundedCornerShape(8.dp))
+                        .background(tokens.surfaceInset, RoundedCornerShape(tokens.radiusSm))
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = "EXPLANATION & AUDIT:",
+                        text = "Explanation & audit",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = PickleballLime
+                        color = tokens.textAccent
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     recommendation.detailedReason.forEach { reason ->
                         Row(modifier = Modifier.padding(vertical = 2.dp)) {
-                            Text(text = "• ", color = TextMuted)
+                            Text(text = "• ", color = tokens.textSecondary)
                             Text(
                                 text = reason,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted
+                                color = tokens.textSecondary
                             )
                         }
                     }
@@ -253,30 +253,51 @@ fun RecommendationCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Primary Action: CALL & START MATCH (Big 56dp+ height)
-            Button(
-                onClick = onCallAndStart,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("call_and_start_button_${recommendation.courtId}"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PickleballLime,
-                    contentColor = Color(0xFF1B3700)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Campaign,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "CALL & START COURT ${recommendation.courtId}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            // Primary action — exactly one lime CTA per Hub (the next ready court).
+            // The primary card fills lime and carries the primary_call_button tag; any
+            // additional ready courts render a neutral "Call" so a single standout survives.
+            if (isPrimary) {
+                Box(modifier = Modifier.testTag("primary_call_button")) {
+                    Button(
+                        onClick = onCallAndStart,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("call_and_start_button_${recommendation.courtId}"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = tokens.accent,
+                            contentColor = tokens.onAccent
+                        ),
+                        shape = RoundedCornerShape(tokens.radiusMd)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Campaign,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Call & start court ${recommendation.courtId}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onCallAndStart,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("call_and_start_button_${recommendation.courtId}"),
+                    shape = RoundedCornerShape(tokens.radiusMd)
+                ) {
+                    Text(
+                        text = "Call court ${recommendation.courtId}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -286,9 +307,9 @@ fun RecommendationCard(
                 onClick = onSwapPartners,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
+                    .height(48.dp)
                     .testTag("swap_partners_button_${recommendation.courtId}"),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(tokens.radiusSm)
             ) {
                 Icon(
                     imageVector = Icons.Default.SwapHoriz,
@@ -296,7 +317,7 @@ fun RecommendationCard(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Swap Partners Across Net")
+                Text("Swap partners across net")
             }
         }
     }

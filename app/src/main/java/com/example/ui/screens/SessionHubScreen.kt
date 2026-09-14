@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,11 +37,43 @@ fun SessionHubScreen(
     var showQueueSheet by remember { mutableStateOf(false) }
     var courtToRecordScore by remember { mutableStateOf<Match?>(null) }
 
-    val activeSession = session ?: return
+    val activeSession = session
+    if (activeSession == null) {
+        Scaffold(containerColor = LocalPickItTokens.current.canvas) { pad ->
+            Column(
+                modifier = Modifier.fillMaxSize().padding(pad).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    "No active session",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = LocalPickItTokens.current.textPrimary,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Start a session to line up courts and keep score.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LocalPickItTokens.current.textSecondary,
+                )
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = { viewModel.navigateTo(AppScreen.Setup) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LocalPickItTokens.current.accent,
+                        contentColor = LocalPickItTokens.current.onAccent,
+                    ),
+                    modifier = Modifier.height(56.dp).testTag("start_session_button"),
+                ) { Text("Start a session", fontWeight = FontWeight.Bold) }
+            }
+        }
+        return
+    }
 
     val availableQueue = activeSession.roster.filter { it.status == ParticipantStatus.AVAILABLE }
     val activeMatchesCount = activeSession.courts.count { it.status == CourtStatus.IN_PROGRESS }
     val recommendations = activeSession.activeRecommendations
+    val tokens = LocalPickItTokens.current
 
     Scaffold(
         topBar = {
@@ -52,12 +84,12 @@ fun SessionHubScreen(
                             text = activeSession.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = WhiteHighContrast
+                            color = tokens.textPrimary
                         )
                         Text(
                             text = "Policy: ${activeSession.rotationPolicy.displayName}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = PickleballLime
+                            color = tokens.textAccent
                         )
                     }
                 },
@@ -66,10 +98,10 @@ fun SessionHubScreen(
                     FilledTonalButton(
                         onClick = { showQueueSheet = true },
                         colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color(0xFF263300),
-                            contentColor = PickleballLime
+                            containerColor = tokens.surfaceInset,
+                            contentColor = tokens.textAccent
                         ),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(tokens.radiusSm),
                         modifier = Modifier.testTag("open_queue_button")
                     ) {
                         Icon(
@@ -92,16 +124,16 @@ fun SessionHubScreen(
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = "Settings",
-                            tint = WhiteHighContrast
+                            tint = tokens.textPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = CanvasDark
+                    containerColor = tokens.canvas
                 )
             )
         },
-        containerColor = CanvasDark
+        containerColor = tokens.canvas
     ) { innerPadding ->
         LazyColumn(
             modifier = modifier
@@ -118,14 +150,16 @@ fun SessionHubScreen(
                         text = "ROTATION RECOMMENDATIONS READY",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = CourtAttentionAmber,
+                        color = tokens.attention,
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
 
-                items(recommendations.values.toList()) { rec ->
+                val sortedRecs = recommendations.values.sortedBy { it.courtId }
+                itemsIndexed(sortedRecs) { index, rec ->
                     RecommendationCard(
                         recommendation = rec,
+                        isPrimary = (index == 0),
                         onCallAndStart = { viewModel.confirmRecommendation(rec.courtId) },
                         onSwapPartners = { viewModel.swapRecommendationPartners(rec.courtId) },
                         onRestPlayer = { playerId -> viewModel.togglePlayerRest(playerId) }
@@ -150,13 +184,13 @@ fun SessionHubScreen(
                         text = "COURTS OVERVIEW (${activeMatchesCount}/${activeSession.courts.size} IN PLAY)",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = TextMuted
+                        color = tokens.textSecondary
                     )
 
                     Text(
                         text = "Tap Live or Final to record",
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextMuted
+                        color = tokens.textSecondary
                     )
                 }
             }
@@ -181,8 +215,8 @@ fun SessionHubScreen(
             // Section 4: Standalone / Quick Scorekeeper Affordance
             item {
                 Surface(
-                    color = Color(0xFF141C17),
-                    shape = RoundedCornerShape(12.dp),
+                    color = tokens.surfaceInset,
+                    shape = RoundedCornerShape(tokens.radiusMd),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
@@ -199,18 +233,18 @@ fun SessionHubScreen(
                                 text = "Standalone Scorekeeper",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = WhiteHighContrast
+                                color = tokens.textPrimary
                             )
                             Text(
                                 text = "Keep score for an ad-hoc pick-up game",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted
+                                color = tokens.textSecondary
                             )
                         }
 
                         OutlinedButton(
                             onClick = { viewModel.launchStandaloneScoreboard() },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(tokens.radiusSm),
                             modifier = Modifier.testTag("launch_standalone_scoreboard_button")
                         ) {
                             Text("Launch")
