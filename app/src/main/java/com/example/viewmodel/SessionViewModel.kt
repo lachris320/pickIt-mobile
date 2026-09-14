@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.PickleballDatabase
+import com.example.data.local.ThemePreferences
 import com.example.data.repository.SessionRepository
+import com.example.ui.theme.ThemeMode
 import com.example.engine.PickleballGameEngine
 import com.example.engine.RotationEngine
 import com.example.model.*
@@ -37,6 +39,16 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     // Standalone scoreboard match if not in session
     private val _standaloneMatch = MutableStateFlow<Match?>(null)
     val standaloneMatch: StateFlow<Match?> = _standaloneMatch.asStateFlow()
+
+    // App-level appearance preference, read synchronously so there is no theme flash.
+    private val themePrefs = ThemePreferences(application)
+    private val _themeMode = MutableStateFlow(themePrefs.readMode())
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    fun setThemeMode(mode: ThemeMode) {
+        _themeMode.value = mode
+        themePrefs.writeMode(mode)
+    }
 
     val frequentPlayers = listOf(
         "Alice M.", "Bob T.", "Charlie D.", "Dave K.",
