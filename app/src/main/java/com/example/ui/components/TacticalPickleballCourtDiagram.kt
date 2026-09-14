@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,18 +30,19 @@ fun TacticalPickleballCourtDiagram(
     match: Match,
     modifier: Modifier = Modifier
 ) {
-    val kitchenColor = Color(0xFF1E3326)
-    val courtSurfaceColor = Color(0xFF132219)
-    val courtLineColor = Color(0xFF43604E)
-    val servingBoxHighlightColor = PickleballLime.copy(alpha = 0.28f)
-    val activeBorderColor = PickleballLime
+    val tokens = LocalPickItTokens.current
+    val kitchenColor = tokens.surfaceElevated
+    val courtSurfaceColor = tokens.surface
+    val courtLineColor = tokens.border
+    val servingBoxHighlightColor = tokens.accent.copy(alpha = 0.28f)
+    val activeBorderColor = tokens.accent
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(72.dp)
-            .background(courtSurfaceColor, RoundedCornerShape(8.dp))
-            .border(1.5.dp, courtLineColor, RoundedCornerShape(8.dp))
+            .background(courtSurfaceColor, RoundedCornerShape(tokens.radiusSm))
+            .border(1.5.dp, courtLineColor, RoundedCornerShape(tokens.radiusSm))
             .padding(4.dp)
     ) {
         // Court canvas drawing lines
@@ -63,7 +63,7 @@ fun TacticalPickleballCourtDiagram(
 
             // 2. Net line (dashed thick line)
             drawLine(
-                color = WhiteHighContrast,
+                color = tokens.textPrimary,
                 start = Offset(netX, 0f),
                 end = Offset(netX, h),
                 strokeWidth = 3f,
@@ -142,14 +142,14 @@ fun TacticalPickleballCourtDiagram(
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TeamAColor
+                    color = tokens.teamA
                 )
                 if (match.servingTeam == TeamId.TEAM_A) {
                     Text(
                         text = "● SERVING",
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Black,
-                        color = PickleballLime
+                        color = tokens.textAccent
                     )
                 }
             }
@@ -160,7 +160,7 @@ fun TacticalPickleballCourtDiagram(
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextMuted.copy(alpha = 0.6f)
+                color = tokens.textSecondary.copy(alpha = 0.6f)
             )
 
             // Team B indicator
@@ -170,14 +170,14 @@ fun TacticalPickleballCourtDiagram(
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TeamBColor
+                    color = tokens.teamB
                 )
                 if (match.servingTeam == TeamId.TEAM_B) {
                     Text(
                         text = "SERVING ●",
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Black,
-                        color = PickleballLime
+                        color = tokens.textAccent
                     )
                 }
             }
