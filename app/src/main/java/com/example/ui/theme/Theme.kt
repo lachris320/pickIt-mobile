@@ -17,7 +17,10 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = LightTokens.accent, onPrimary = LightTokens.onAccent,
+    // primary drives the content color of neutral OutlinedButton/TextButton; lime is
+    // illegible on a light surface, so use the darker textAccent green. Filled brand
+    // CTAs override with tokens.accent, so their lime is unaffected.
+    primary = LightTokens.textAccent, onPrimary = Color.White,
     secondary = Color(0xFF00897B), onSecondary = Color.White,
     background = LightTokens.canvas, onBackground = LightTokens.textPrimary,
     surface = LightTokens.surface, onSurface = LightTokens.textPrimary,
