@@ -115,7 +115,7 @@ fun CourtStatusCard(
                         onClick = onOpenScoreboard,
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .height(48.dp)
                             .testTag("open_scoreboard_button_${court.id}"),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = tokens.statusLive,
@@ -129,14 +129,14 @@ fun CourtStatusCard(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Live Score", fontWeight = FontWeight.Bold)
+                        Text("Live score", fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
                         onClick = onEnterFinalScore,
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .height(48.dp)
                             .testTag("enter_final_score_button_${court.id}"),
                         shape = RoundedCornerShape(tokens.radiusSm)
                     ) {
@@ -146,7 +146,7 @@ fun CourtStatusCard(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Final Score")
+                        Text("Final score")
                     }
                 }
             } else {

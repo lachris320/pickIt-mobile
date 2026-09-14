@@ -489,7 +489,7 @@ fun LiveScoreboardScreen(
                     onClick = { showAbandonDialog = true },
                     modifier = Modifier.testTag("abandon_match_button")
                 ) {
-                    Text("Abandon Match", color = tokens.textDanger)
+                    Text("Abandon match", color = tokens.textDanger)
                 }
             }
         }

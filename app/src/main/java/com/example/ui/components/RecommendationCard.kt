@@ -17,8 +17,28 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.Player
 import com.example.model.RotationRecommendation
 import com.example.ui.theme.*
+
+@Composable
+private fun RestPlayerButton(
+    player: Player,
+    tint: androidx.compose.ui.graphics.Color,
+    onRestPlayer: (String) -> Unit,
+) {
+    IconButton(
+        onClick = { onRestPlayer(player.id) },
+        modifier = Modifier.size(48.dp).testTag("rest_rec_player_${player.id}")
+    ) {
+        Icon(
+            imageVector = Icons.Default.Bedtime,
+            contentDescription = "Rest ${player.name}",
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
 
 @Composable
 fun RecommendationCard(
@@ -113,17 +133,11 @@ fun RecommendationCard(
                                     color = tokens.textPrimary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamA.player1.id) },
-                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamA.player1.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamA.player1.name}",
-                                        tint = tokens.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamA.player1,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -133,17 +147,11 @@ fun RecommendationCard(
                                     color = tokens.textPrimary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamA.player2.id) },
-                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamA.player2.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamA.player2.name}",
-                                        tint = tokens.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamA.player2,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                             }
                         }
 
@@ -166,17 +174,11 @@ fun RecommendationCard(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamB.player1.id) },
-                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamB.player1.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamB.player1.name}",
-                                        tint = tokens.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamB.player1,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = recommendation.teamB.player1.name,
@@ -186,17 +188,11 @@ fun RecommendationCard(
                                 )
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { onRestPlayer(recommendation.teamB.player2.id) },
-                                    modifier = Modifier.size(48.dp).testTag("rest_rec_player_${recommendation.teamB.player2.id}")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Bedtime,
-                                        contentDescription = "Rest ${recommendation.teamB.player2.name}",
-                                        tint = tokens.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                RestPlayerButton(
+                                    player = recommendation.teamB.player2,
+                                    tint = tokens.textSecondary,
+                                    onRestPlayer = onRestPlayer
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = recommendation.teamB.player2.name,
@@ -311,7 +307,7 @@ fun RecommendationCard(
                 onClick = onSwapPartners,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
+                    .height(48.dp)
                     .testTag("swap_partners_button_${recommendation.courtId}"),
                 shape = RoundedCornerShape(tokens.radiusSm)
             ) {

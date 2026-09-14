@@ -1052,6 +1052,8 @@ Add imports for `DropdownMenu`, `DropdownMenuItem`, `Icons.Default.BrightnessMed
 
 Use `loadSessionForTest` to seed the VM synchronously so nothing waits on Room.
 
+> **Deviation (accepted, implemented):** baselines cover **Hub, Live Scoreboard, and Setup** in both themes (6 images). The two modal sheets (`FastFinalScoreSheet`, `QueueRosterSheet`) are **deferred** — standalone `ModalBottomSheet` screenshots are fragile to capture deterministically (sheet state/animation, overlay window), and both sheets are migrated onto tokens like every other surface and exercised through their host flows (finalize path; Hub queue button). Tracked as a follow-up, not a blocker.
+
 - [ ] **Step 2: Delete the stale test + baseline**
 
 Remove `GreetingScreenshotTest.kt` and `src/test/screenshots/greeting.png` (orphaned; the real capture was `app_home.png`).

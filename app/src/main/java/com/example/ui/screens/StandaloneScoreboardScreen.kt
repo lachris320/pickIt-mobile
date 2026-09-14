@@ -233,8 +233,6 @@ fun StandaloneScoreboardScreen(
                             Text(
                                 text = "$targetScore",
                                 style = MaterialTheme.typography.displayLarge,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 68.sp,
                                 color = tokens.textPrimary
                             )
                         }
@@ -281,8 +279,6 @@ fun StandaloneScoreboardScreen(
                             Text(
                                 text = "$targetScore",
                                 style = MaterialTheme.typography.displayLarge,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 68.sp,
                                 color = tokens.textPrimary
                             )
                         }
@@ -322,7 +318,7 @@ fun StandaloneScoreboardScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "TEAM A WON RALLY",
+                            text = "${match.teamA.playerNames()} won rally",
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp
                         )
@@ -358,7 +354,7 @@ fun StandaloneScoreboardScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "TEAM B WON RALLY",
+                            text = "${match.teamB.playerNames()} won rally",
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp
                         )

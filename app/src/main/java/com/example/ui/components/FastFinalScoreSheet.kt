@@ -261,7 +261,7 @@ private fun ScorePillButton(
         shape = RoundedCornerShape(tokens.radiusSm),
         contentPadding = PaddingValues(4.dp),
         modifier = modifier
-            .height(44.dp)
+            .height(48.dp)
             .testTag("score_pill_$score")
     ) {
         if (isSelected) {
