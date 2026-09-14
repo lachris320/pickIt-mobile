@@ -107,7 +107,7 @@ Implementation: `CourtCallScreen` provides `DarkTokens` explicitly to its subtre
 - **State-change signal.** When a tile **transitions to UP NOW or FINAL**, a brief, **non-distracting highlight** (a short pulse / fade, not a flashing loop) pulls the eye to the change — visibility-of-system-status without becoming ambient noise.
 - **Auto-rotation HOLDS on a just-called court.** If a court transitions to UP NOW while it sits on an off-screen page, pagination **holds** (surfaces that page / does not cycle it away) long enough for the change to be seen — the board must never announce "up now" on a page nobody is looking at.
 - **Empty / paused states.**
-  - No active session (`session == null`) → a centered **"No active session"** prompt instead of a grid (the entry action is disabled in this case, but the screen guards defensively).
+  - No active session (`session == null`) → a centered **"No active session"** prompt instead of a grid (the entry action is structurally absent in this case per §4, but the screen still guards defensively).
   - Session paused (`session.isPaused`) or a court `PAUSED` → a **paused banner over the board** (session-level covers the whole board; a single paused court gets the tile-level PAUSED treatment from §5).
 
 ## 9. Accessibility requirements
