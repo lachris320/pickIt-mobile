@@ -42,6 +42,7 @@ fun LiveScoreboardScreen(
     val match = court?.currentMatch
 
     var showFinalScoreSheet by remember { mutableStateOf(false) }
+    var showAbandonDialog by remember { mutableStateOf(false) }
 
     if (match == null) {
         Box(
@@ -488,7 +489,7 @@ fun LiveScoreboardScreen(
                 }
 
                 TextButton(
-                    onClick = { viewModel.abandonMatch(courtId) },
+                    onClick = { showAbandonDialog = true },
                     modifier = Modifier.testTag("abandon_match_button")
                 ) {
                     Text("Abandon Match", color = Color(0xFFEF5350))
@@ -531,6 +532,46 @@ fun LiveScoreboardScreen(
                 }
             },
             containerColor = PickleballCardSurface
+        )
+    }
+
+    // Abandon-match confirmation (destructive action requires confirmation)
+    if (showAbandonDialog) {
+        AlertDialog(
+            onDismissRequest = { showAbandonDialog = false },
+            title = {
+                Text("Abandon match?", fontWeight = FontWeight.Bold, color = LocalPickItTokens.current.textPrimary)
+            },
+            text = {
+                Text(
+                    "This ends the match with no result and returns both teams to the queue.",
+                    color = LocalPickItTokens.current.textSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showAbandonDialog = false
+                        viewModel.abandonMatch(courtId)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LocalPickItTokens.current.textDanger,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.testTag("confirm_abandon_button")
+                ) {
+                    Text("Abandon", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showAbandonDialog = false },
+                    modifier = Modifier.testTag("dismiss_abandon_button")
+                ) {
+                    Text("Keep playing")
+                }
+            },
+            containerColor = LocalPickItTokens.current.surfaceElevated
         )
     }
 
