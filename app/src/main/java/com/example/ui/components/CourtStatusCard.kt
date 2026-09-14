@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.Court
@@ -26,55 +28,35 @@ fun CourtStatusCard(
     onTogglePause: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val borderColor = when (court.status) {
-        CourtStatus.AVAILABLE -> CourtAvailableGreen
-        CourtStatus.IN_PROGRESS -> CourtActiveBlue
-        CourtStatus.PAUSED -> CourtPausedGray
-    }
+    val tokens = LocalPickItTokens.current
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.5.dp, borderColor, RoundedCornerShape(14.dp))
+            .border(1.dp, tokens.border, RoundedCornerShape(tokens.radiusLg))
             .testTag("court_card_${court.id}"),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = PickleballCardSurface)
+        shape = RoundedCornerShape(tokens.radiusLg),
+        colors = CardDefaults.cardColors(containerColor = tokens.surfaceElevated)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp)
         ) {
-            // Header: Court Name + Status Pill
+            // Header: Court Name + Status Indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = court.name.uppercase(),
+                    text = court.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = WhiteHighContrast
+                    color = tokens.textPrimary
                 )
 
-                Surface(
-                    color = borderColor.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
-                ) {
-                    Text(
-                        text = when (court.status) {
-                            CourtStatus.AVAILABLE -> "OPEN / AVAILABLE"
-                            CourtStatus.IN_PROGRESS -> "MATCH LIVE (${court.currentMatch?.calloutString() ?: "0-0"})"
-                            CourtStatus.PAUSED -> "PAUSED"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = borderColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
+                CourtStatusIndicator(status = court.status, tokens = tokens)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -92,27 +74,31 @@ fun CourtStatusCard(
                             text = match.teamA.playerNames(),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
-                            color = TeamAColor
+                            color = tokens.teamA,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "vs ${match.teamB.playerNames()}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = TeamBColor
+                            color = tokens.teamB,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     // Score Big Badge
                     Surface(
-                        color = Color(0xFF0F1713),
-                        shape = RoundedCornerShape(8.dp),
+                        color = tokens.surfaceInset,
+                        shape = RoundedCornerShape(tokens.radiusSm),
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
                             text = "${match.scoreA} - ${match.scoreB}",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PickleballLime,
+                            color = tokens.textAccent,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
@@ -132,10 +118,10 @@ fun CourtStatusCard(
                             .height(44.dp)
                             .testTag("open_scoreboard_button_${court.id}"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CourtActiveBlue,
+                            containerColor = tokens.statusLive,
                             contentColor = Color.Black
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(tokens.radiusSm)
                     ) {
                         Icon(
                             imageVector = Icons.Default.SportsTennis,
@@ -152,7 +138,7 @@ fun CourtStatusCard(
                             .weight(1f)
                             .height(44.dp)
                             .testTag("enter_final_score_button_${court.id}"),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(tokens.radiusSm)
                     ) {
                         Icon(
                             imageVector = Icons.Default.DoneAll,
@@ -172,13 +158,13 @@ fun CourtStatusCard(
                     Text(
                         text = if (court.status == CourtStatus.PAUSED) "Court paused. Excluded from rotation router." else "Court is clear and ready for rotation.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (court.status == CourtStatus.PAUSED) CourtPausedGray else TextMuted,
+                        color = if (court.status == CourtStatus.PAUSED) tokens.statusPaused else tokens.textSecondary,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     OutlinedButton(
                         onClick = onTogglePause,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(tokens.radiusSm),
                         modifier = Modifier.testTag("toggle_pause_court_${court.id}")
                     ) {
                         Icon(
@@ -190,6 +176,61 @@ fun CourtStatusCard(
                         Text(if (court.status == CourtStatus.PAUSED) "Open Court" else "Pause Court")
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Status indicator with a distinct shape per state so status never relies on color alone:
+ * AVAILABLE = outlined ring, IN_PROGRESS = filled dot, PAUSED = pause glyph.
+ */
+@Composable
+private fun CourtStatusIndicator(status: CourtStatus, tokens: PickItTokens) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        when (status) {
+            CourtStatus.AVAILABLE -> {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .border(1.5.dp, tokens.statusOpen, androidx.compose.foundation.shape.CircleShape)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Open",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = tokens.statusOpen
+                )
+            }
+            CourtStatus.IN_PROGRESS -> {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(tokens.statusLive, androidx.compose.foundation.shape.CircleShape)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Live",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = tokens.statusLive
+                )
+            }
+            CourtStatus.PAUSED -> {
+                Icon(
+                    imageVector = Icons.Default.Pause,
+                    contentDescription = null,
+                    tint = tokens.statusPaused,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Paused",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = tokens.statusPaused
+                )
             }
         }
     }
