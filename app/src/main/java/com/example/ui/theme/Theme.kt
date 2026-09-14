@@ -5,46 +5,41 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PickleballLime,
-    onPrimary = Color(0xFF1B3700),
-    primaryContainer = PickleballLimeContainer,
-    onPrimaryContainer = Color(0xFFE4F87E),
-    secondary = PickleballEmerald,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFF003831),
-    onSecondaryContainer = Color(0xFF73F8DE),
-    tertiary = TeamBColor,
-    background = CanvasDark,
-    onBackground = WhiteHighContrast,
-    surface = PickleballCardSurface,
-    onSurface = WhiteHighContrast,
-    surfaceVariant = Color(0xFF232F28),
-    onSurfaceVariant = Color(0xFFCFD8DC),
-    outline = PickleballCardBorder
+    primary = DarkTokens.accent, onPrimary = DarkTokens.onAccent,
+    secondary = Color(0xFF00897B), onSecondary = Color.White,
+    background = DarkTokens.canvas, onBackground = DarkTokens.textPrimary,
+    surface = DarkTokens.surfaceElevated, onSurface = DarkTokens.textPrimary,
+    outline = DarkTokens.border,
 )
 
-private val LightColorScheme = darkColorScheme( // We prefer a dark high-contrast court theme even in daylight for glare reduction
-    primary = PickleballLime,
-    onPrimary = Color(0xFF1B3700),
-    secondary = PickleballEmerald,
-    background = CanvasDark,
-    surface = PickleballCardSurface,
-    onBackground = WhiteHighContrast,
-    onSurface = WhiteHighContrast
+private val LightColorScheme = lightColorScheme(
+    primary = LightTokens.accent, onPrimary = LightTokens.onAccent,
+    secondary = Color(0xFF00897B), onSecondary = Color.White,
+    background = LightTokens.canvas, onBackground = LightTokens.textPrimary,
+    surface = LightTokens.surface, onSurface = LightTokens.textPrimary,
+    outline = LightTokens.border,
 )
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Use our handcrafted court theme
-    content: @Composable () -> Unit
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = DarkColorScheme,
-        typography = Typography,
-        content = content
-    )
+    val dark = when (themeMode) {
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+    val tokens = if (dark) DarkTokens else LightTokens
+    CompositionLocalProvider(LocalPickItTokens provides tokens) {
+        MaterialTheme(
+            colorScheme = if (dark) DarkColorScheme else LightColorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }
