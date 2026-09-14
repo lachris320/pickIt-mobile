@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.Match
@@ -30,10 +31,11 @@ fun FastFinalScoreSheet(
 
     // Auto-compute winning score (if losing score is 10+, winner must be at least losingScore + 2)
     val actualWinnerScore = if (losingScore >= 10) losingScore + 2 else 11
+    val tokens = LocalPickItTokens.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = PickleballCardSurface
+        containerColor = tokens.surfaceElevated
     ) {
         Column(
             modifier = Modifier
@@ -42,15 +44,15 @@ fun FastFinalScoreSheet(
                 .testTag("fast_final_score_sheet")
         ) {
             Text(
-                text = "RECORD FINAL SCORE: COURT ${match.courtId}",
+                text = "Record final score: Court ${match.courtId}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = WhiteHighContrast
+                color = tokens.textPrimary
             )
             Text(
                 text = "Tap winning team and losing team's score to rotate in 2 taps.",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+                color = tokens.textSecondary
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -60,7 +62,7 @@ fun FastFinalScoreSheet(
                 text = "STEP 1: SELECT WINNING TEAM",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = PickleballLime
+                color = tokens.textAccent
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -71,13 +73,13 @@ fun FastFinalScoreSheet(
                 OutlinedButton(
                     onClick = { winningTeam = TeamId.TEAM_A },
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (winningTeam == TeamId.TEAM_A) TeamAColor.copy(alpha = 0.2f) else Color.Transparent
+                        containerColor = if (winningTeam == TeamId.TEAM_A) tokens.teamA.copy(alpha = 0.2f) else Color.Transparent
                     ),
                     border = androidx.compose.foundation.BorderStroke(
                         2.dp,
-                        if (winningTeam == TeamId.TEAM_A) TeamAColor else Color(0xFF37474F)
+                        if (winningTeam == TeamId.TEAM_A) tokens.teamA else tokens.border
                     ),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(tokens.radiusSm),
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp)
@@ -88,13 +90,14 @@ fun FastFinalScoreSheet(
                             text = "TEAM A",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = TeamAColor
+                            color = tokens.teamA
                         )
                         Text(
                             text = match.teamA.playerNames(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = WhiteHighContrast,
-                            maxLines = 1
+                            color = tokens.textPrimary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -102,13 +105,13 @@ fun FastFinalScoreSheet(
                 OutlinedButton(
                     onClick = { winningTeam = TeamId.TEAM_B },
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (winningTeam == TeamId.TEAM_B) TeamBColor.copy(alpha = 0.2f) else Color.Transparent
+                        containerColor = if (winningTeam == TeamId.TEAM_B) tokens.teamB.copy(alpha = 0.2f) else Color.Transparent
                     ),
                     border = androidx.compose.foundation.BorderStroke(
                         2.dp,
-                        if (winningTeam == TeamId.TEAM_B) TeamBColor else Color(0xFF37474F)
+                        if (winningTeam == TeamId.TEAM_B) tokens.teamB else tokens.border
                     ),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(tokens.radiusSm),
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp)
@@ -119,13 +122,14 @@ fun FastFinalScoreSheet(
                             text = "TEAM B",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = TeamBColor
+                            color = tokens.teamB
                         )
                         Text(
                             text = match.teamB.playerNames(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = WhiteHighContrast,
-                            maxLines = 1
+                            color = tokens.textPrimary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -138,7 +142,7 @@ fun FastFinalScoreSheet(
                 text = "STEP 2: SELECT LOSING TEAM'S SCORE",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = PickleballLime
+                color = tokens.textAccent
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -182,8 +186,8 @@ fun FastFinalScoreSheet(
             }
 
             Surface(
-                color = Color(0xFF0F1713),
-                shape = RoundedCornerShape(10.dp),
+                color = tokens.surfaceInset,
+                shape = RoundedCornerShape(tokens.radiusSm),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -195,7 +199,7 @@ fun FastFinalScoreSheet(
                         Text(
                             text = "PREVIEW RESULT:",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
+                            color = tokens.textSecondary
                         )
                         Text(
                             text = if (winningTeam == TeamId.TEAM_A) {
@@ -205,7 +209,7 @@ fun FastFinalScoreSheet(
                             },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = WhiteHighContrast
+                            color = tokens.textPrimary
                         )
                     }
                 }
@@ -221,15 +225,15 @@ fun FastFinalScoreSheet(
                     .height(54.dp)
                     .testTag("confirm_final_score_button"),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PickleballLime,
-                    contentColor = Color(0xFF1B3700)
+                    containerColor = tokens.accent,
+                    contentColor = tokens.onAccent
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(tokens.radiusMd)
             ) {
                 Icon(imageVector = Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "CONFIRM $finalA - $finalB & ROTATE",
+                    text = "Confirm $finalA - $finalB & rotate",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -247,18 +251,27 @@ private fun ScorePillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalPickItTokens.current
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) PickleballLime else Color(0xFF233027),
-            contentColor = if (isSelected) Color(0xFF1B3700) else WhiteHighContrast
+            containerColor = if (isSelected) tokens.accent else tokens.surfaceInset,
+            contentColor = if (isSelected) tokens.onAccent else tokens.textPrimary
         ),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(tokens.radiusSm),
         contentPadding = PaddingValues(4.dp),
         modifier = modifier
             .height(44.dp)
             .testTag("score_pill_$score")
     ) {
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+        }
         Text(
             text = if (score == 12) "12+" else "$score",
             fontWeight = FontWeight.Bold,
