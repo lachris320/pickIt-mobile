@@ -50,6 +50,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         themePrefs.writeMode(mode)
     }
 
+    @androidx.annotation.VisibleForTesting
+    fun loadSessionForTest(s: OpenPlaySession) { _session.value = s }
+
     val frequentPlayers = listOf(
         "Alice M.", "Bob T.", "Charlie D.", "Dave K.",
         "Frank L.", "Grace H.", "Henry P.", "Ivy W.",
