@@ -58,8 +58,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     )
 
     init {
-        // Attempt to load previously saved active session from Room database,
-        // falling back to initial default demo session if no stored state exists.
+        // Load a previously saved active session from Room; if none exists this is a
+        // fresh install and we start with NO active session (the Hub shows its empty
+        // state — see SessionHubScreen). No fake demo session is seeded.
         viewModelScope.launch {
             val savedSession = repository.loadLatestSession()
             if (savedSession != null && savedSession.roster.isNotEmpty()) {
@@ -70,60 +71,12 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
                     if (r != null) recs[c.id] = r
                 }
                 _session.value = savedSession.copy(activeRecommendations = recs)
-            } else {
-                createInitialSession()
             }
+            // No saved session -> _session stays at its null default.
+            // Deliberately NO `else { _session.value = null }`: this coroutine resumes
+            // after a test's loadSessionForTest(), and a null write would clobber the
+            // injected fixture.
         }
-    }
-
-    private fun createInitialSession() {
-        val initialPlayers = frequentPlayers.take(14).mapIndexed { idx, name ->
-            Player(
-                id = "p_$idx",
-                name = name,
-                status = ParticipantStatus.AVAILABLE,
-                queuedTimestamp = System.currentTimeMillis() - ((14 - idx) * 60_000L),
-                matchesPlayed = if (idx < 8) (idx % 2 + 1) else 0
-            )
-        }
-
-        val court1Match = PickleballGameEngine.createMatch(
-            courtId = 1,
-            teamA = Team(TeamId.TEAM_A, initialPlayers[0], initialPlayers[1]),
-            teamB = Team(TeamId.TEAM_B, initialPlayers[2], initialPlayers[3])
-        ).copy(scoreA = 8, scoreB = 5, serverNumber = 1)
-
-        val court2Match = PickleballGameEngine.createMatch(
-            courtId = 2,
-            teamA = Team(TeamId.TEAM_A, initialPlayers[4], initialPlayers[5]),
-            teamB = Team(TeamId.TEAM_B, initialPlayers[6], initialPlayers[7])
-        ).copy(scoreA = 4, scoreB = 2, serverNumber = 2)
-
-        val courts = listOf(
-            Court(id = 1, name = "Court 1", status = CourtStatus.IN_PROGRESS, currentMatch = court1Match),
-            Court(id = 2, name = "Court 2", status = CourtStatus.IN_PROGRESS, currentMatch = court2Match),
-            Court(id = 3, name = "Court 3", status = CourtStatus.AVAILABLE, currentMatch = null)
-        )
-
-        val updatedRoster = initialPlayers.mapIndexed { idx, player ->
-            if (idx < 8) player.copy(status = ParticipantStatus.IN_MATCH) else player
-        }
-
-        val initialSession = OpenPlaySession(
-            id = "sess_${System.currentTimeMillis()}",
-            name = "Friday Morning Open Play",
-            rotationPolicy = RotationPolicy.FOUR_OFF_FOUR_ON,
-            consecutiveGameCap = 2,
-            courts = courts,
-            roster = updatedRoster
-        )
-
-        val rec = RotationEngine.generateRecommendation(initialSession, 3, null)
-        val recs = if (rec != null) mapOf(3 to rec) else emptyMap()
-
-        val fullSession = initialSession.copy(activeRecommendations = recs)
-        _session.value = fullSession
-        persistSession(fullSession)
     }
 
     private fun persistSession(session: OpenPlaySession) {

@@ -37,7 +37,38 @@ fun SessionHubScreen(
     var showQueueSheet by remember { mutableStateOf(false) }
     var courtToRecordScore by remember { mutableStateOf<Match?>(null) }
 
-    val activeSession = session ?: return
+    val activeSession = session
+    if (activeSession == null) {
+        Scaffold(containerColor = LocalPickItTokens.current.canvas) { pad ->
+            Column(
+                modifier = Modifier.fillMaxSize().padding(pad).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    "No active session",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = LocalPickItTokens.current.textPrimary,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Start a session to line up courts and keep score.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LocalPickItTokens.current.textSecondary,
+                )
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = { viewModel.navigateTo(AppScreen.Setup) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LocalPickItTokens.current.accent,
+                        contentColor = LocalPickItTokens.current.onAccent,
+                    ),
+                    modifier = Modifier.height(56.dp).testTag("start_session_button"),
+                ) { Text("Start a session", fontWeight = FontWeight.Bold) }
+            }
+        }
+        return
+    }
 
     val availableQueue = activeSession.roster.filter { it.status == ParticipantStatus.AVAILABLE }
     val activeMatchesCount = activeSession.courts.count { it.status == CourtStatus.IN_PROGRESS }
