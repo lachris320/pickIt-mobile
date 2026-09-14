@@ -62,6 +62,41 @@ fun SetupScreen(
                         )
                     }
                 },
+                actions = {
+                    // App-level appearance preference — peripheral and clearly secondary,
+                    // so it never competes with the Launch session button.
+                    var menuOpen by remember { mutableStateOf(false) }
+                    IconButton(
+                        onClick = { menuOpen = true },
+                        modifier = Modifier.testTag("appearance_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BrightnessMedium,
+                            contentDescription = "Appearance",
+                            tint = tokens.textSecondary
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        ThemeMode.values().forEach { mode ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        when (mode) {
+                                            ThemeMode.DARK -> "Dark"
+                                            ThemeMode.LIGHT -> "Light"
+                                            ThemeMode.SYSTEM -> "Follow system"
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.setThemeMode(mode)
+                                    menuOpen = false
+                                },
+                                modifier = Modifier.testTag("appearance_option_${mode.name}")
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = tokens.canvas)
             )
         },
