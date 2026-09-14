@@ -147,7 +147,7 @@ fun SessionHubScreen(
             if (recommendations.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Rotation recommendations ready",
+                        text = "ROTATION RECOMMENDATIONS READY",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = tokens.attention,
@@ -181,7 +181,7 @@ fun SessionHubScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Courts overview (${activeMatchesCount}/${activeSession.courts.size} in play)",
+                        text = "COURTS OVERVIEW (${activeMatchesCount}/${activeSession.courts.size} IN PLAY)",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = tokens.textSecondary
