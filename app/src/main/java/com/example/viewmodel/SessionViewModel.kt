@@ -1,6 +1,7 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
@@ -11,6 +12,7 @@ import com.example.ui.theme.ThemeMode
 import com.example.engine.PickleballGameEngine
 import com.example.engine.RotationEngine
 import com.example.model.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -82,35 +84,38 @@ class SessionViewModel @JvmOverloads constructor(
         // fresh install and we start with NO active session (the Hub shows its empty
         // state — see SessionHubScreen). No fake demo session is seeded.
         viewModelScope.launch {
-            try {
-                val savedSession = repository.loadLatestSession()
-                if (savedSession != null && savedSession.roster.isNotEmpty() && !testSessionInjected) {
-                    // Re-evaluate recommendations
-                    val recs = mutableMapOf<Int, RotationRecommendation>()
-                    savedSession.courts.filter { it.status == CourtStatus.AVAILABLE }.forEach { c ->
-                        val r = RotationEngine.generateRecommendation(savedSession, c.id, null)
-                        if (r != null) recs[c.id] = r
-                    }
-                    _session.value = savedSession.copy(activeRecommendations = recs)
-                }
-                // No saved session -> _session stays at its null default.
-                // Deliberately NO `else { _session.value = null }`: this coroutine resumes
-                // after a test's loadSessionForTest(), and a null write would clobber the
-                // injected fixture.
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            // Only the DB read is defended. A genuine bug in the recommendation rebuild on a
+            // VALID session must surface, not be silently swallowed into empty state — so the
+            // try wraps ONLY loadLatestSession() (the I/O that can fail if e.g. the Room DB was
+            // torn down out from under a leaked, never-cleared VM whose init coroutine is still
+            // pending). The rebuild runs OUTSIDE the try, uncaught, matching startNewSession /
+            // refreshRecommendations which call generateRecommendation uncaught.
+            val savedSession = try {
+                repository.loadLatestSession()
+            } catch (e: CancellationException) {
                 // Preserve structured-concurrency cancellation — never swallow it.
                 throw e
             } catch (e: Exception) {
-                // The persisted session could not be read (e.g. the Room DB was torn down
-                // out from under a leaked, never-cleared VM whose init coroutine is still
-                // pending). Do NOT let this escape into viewModelScope as an uncaught
-                // exception; log it and start with no active session (empty state).
-                android.util.Log.w(
+                Log.w(
                     "SessionViewModel",
                     "Failed to load saved session; starting with no active session",
                     e
                 )
+                null
             }
+            if (savedSession != null && savedSession.roster.isNotEmpty() && !testSessionInjected) {
+                // Re-evaluate recommendations
+                val recs = mutableMapOf<Int, RotationRecommendation>()
+                savedSession.courts.filter { it.status == CourtStatus.AVAILABLE }.forEach { c ->
+                    val r = RotationEngine.generateRecommendation(savedSession, c.id, null)
+                    if (r != null) recs[c.id] = r
+                }
+                _session.value = savedSession.copy(activeRecommendations = recs)
+            }
+            // No saved session (or the load failed) -> _session stays at its null default.
+            // Deliberately NO `else { _session.value = null }`: this coroutine resumes
+            // after a test's loadSessionForTest(), and a null write would clobber the
+            // injected fixture.
         }
     }
 
