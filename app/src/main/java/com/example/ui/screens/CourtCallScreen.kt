@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,8 +19,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -32,6 +38,7 @@ import com.example.ui.theme.DarkTokens
 import com.example.ui.theme.LocalPickItTokens
 import com.example.viewmodel.AppScreen
 import com.example.viewmodel.SessionViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun CourtCallScreen(
@@ -97,22 +104,60 @@ fun CourtCallScreen(
     }
 }
 
-/**
- * Static single-page grid. Courts render in fixed `courtId` order. Pagination and auto-cycle
- * are layered on in Task 5.
- */
 @Composable
 private fun CourtCallGrid(session: OpenPlaySession) {
-    val courts = session.courts.sortedBy { it.id }
-    val primaryId = primaryReadyCourtId(session)
-    CourtGridLayout(courts = courts, session = session, primaryId = primaryId, columns = columnsFor(courts.size))
-}
+    val courts = remember(session) { session.courts.sortedBy { it.id } }
+    val primaryId = remember(session) { primaryReadyCourtId(session) }
 
-/** Simple column count so a small board is not stretched into one giant row before Task 5. */
-private fun columnsFor(count: Int): Int = when {
-    count <= 1 -> 1
-    count <= 4 -> 2
-    else -> 3
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val columns = when {
+            maxWidth < 600.dp -> 1
+            maxWidth < 1000.dp -> 2
+            else -> 3
+        }
+        val rows = if (maxHeight < 480.dp) 1 else 2
+        val capacity = (columns * rows).coerceAtLeast(1)
+
+        val pages = courts.chunked(capacity)
+        var pageIndex by rememberSaveable(pages.size) { mutableStateOf(0) }
+
+        // ~10s auto-advance, only when there is more than one page.
+        if (pages.size > 1) {
+            LaunchedEffect(pages.size) {
+                while (true) {
+                    delay(10_000)
+                    pageIndex = (pageIndex + 1) % pages.size
+                }
+            }
+        }
+
+        if (pages.isNotEmpty()) {
+            // DERIVE the clamped page for display — never write pageIndex during composition.
+            val page = pageIndex.coerceIn(0, pages.lastIndex)
+            Column(modifier = Modifier.fillMaxSize()) {
+                CourtGridLayout(
+                    courts = pages[page],
+                    session = session,
+                    primaryId = primaryId,
+                    columns = columns,
+                    modifier = Modifier.weight(1f),
+                )
+                if (pages.size > 1) {
+                    val tokens = LocalPickItTokens.current
+                    Text(
+                        text = "${page + 1} / ${pages.size}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = tokens.textSecondary,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(bottom = 12.dp)
+                            .testTag("court_call_page_indicator"),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -121,9 +166,10 @@ private fun CourtGridLayout(
     session: OpenPlaySession,
     primaryId: Int?,
     columns: Int,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         courts.chunked(columns).forEach { rowCourts ->
