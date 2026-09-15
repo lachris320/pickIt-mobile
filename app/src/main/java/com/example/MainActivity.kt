@@ -34,14 +34,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by sessionViewModel.themeMode.collectAsState()
             MyApplicationTheme(themeMode = themeMode) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    PickleballAppContent(viewModel = sessionViewModel)
-                }
+                PickleballAppContent(viewModel = sessionViewModel)
             }
         }
     }
@@ -52,21 +45,24 @@ fun PickleballAppContent(viewModel: SessionViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
 
     Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
-        when (screen) {
-            is AppScreen.SessionHub -> {
-                SessionHubScreen(viewModel = viewModel)
-            }
-            is AppScreen.LiveScoreboard -> {
-                LiveScoreboardScreen(courtId = screen.courtId, viewModel = viewModel)
-            }
-            is AppScreen.StandaloneScoreboard -> {
-                StandaloneScoreboardScreen(match = screen.match, viewModel = viewModel)
-            }
-            is AppScreen.Setup -> {
-                SetupScreen(viewModel = viewModel)
-            }
-            is AppScreen.CourtCall -> {
-                CourtCallScreen(viewModel = viewModel)
+        if (screen is AppScreen.CourtCall) {
+            // Full-bleed: no safeDrawingPadding, no MaterialTheme.colorScheme Surface.
+            // CourtCallScreen paints DarkTokens.canvas edge-to-edge itself.
+            CourtCallScreen(viewModel = viewModel)
+        } else {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding(),
+                color = MaterialTheme.colorScheme.background,
+            ) {
+                when (screen) {
+                    is AppScreen.SessionHub -> SessionHubScreen(viewModel = viewModel)
+                    is AppScreen.LiveScoreboard -> LiveScoreboardScreen(courtId = screen.courtId, viewModel = viewModel)
+                    is AppScreen.StandaloneScoreboard -> StandaloneScoreboardScreen(match = screen.match, viewModel = viewModel)
+                    is AppScreen.Setup -> SetupScreen(viewModel = viewModel)
+                    is AppScreen.CourtCall -> Unit // handled above; keeps `when` exhaustive
+                }
             }
         }
     }
