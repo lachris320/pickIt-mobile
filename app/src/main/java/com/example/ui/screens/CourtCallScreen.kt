@@ -278,6 +278,9 @@ private fun CourtGridLayout(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 rowCourts.forEach { court ->
+                    // `states` is built over the same court list these pages are chunked from, so
+                    // every rendered id is present; the OPEN fallback is a total-by-construction
+                    // safety net (prefer a graceful degrade over a crash on a live board).
                     val state = states[court.id] ?: CourtCallState.OPEN
                     Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                         CourtCallTile(
