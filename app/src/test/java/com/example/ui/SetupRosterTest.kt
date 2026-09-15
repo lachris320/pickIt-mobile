@@ -3,25 +3,20 @@ package com.example.ui
 import android.app.Application
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
+import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.SetupScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.SessionViewModel
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-class SetupRosterTest {
-    @get:Rule val rule = createComposeRule()
+class SetupRosterTest : RobolectricComposeTest() {
 
     @Test fun rosterStartsEmpty_andLoadSamplePopulatesIt() {
         val vm = SessionViewModel(ApplicationProvider.getApplicationContext<Application>())

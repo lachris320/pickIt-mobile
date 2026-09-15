@@ -1,7 +1,6 @@
 package com.example.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertCountEquals
@@ -13,19 +12,15 @@ import com.example.model.Player
 import com.example.model.RotationRecommendation
 import com.example.model.Team
 import com.example.model.TeamId
+import com.example.testing.RobolectricComposeTest
 import com.example.ui.components.CourtCallTile
 import com.example.ui.screens.CourtCallState
 import com.example.ui.theme.MyApplicationTheme
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-class CourtCallTileTest {
-    @get:Rule val rule = createComposeRule()
+class CourtCallTileTest : RobolectricComposeTest() {
 
     private fun p(i: Int) = Player(id = "p$i", name = "Player $i")
     private fun rec(courtId: Int) = RotationRecommendation(
