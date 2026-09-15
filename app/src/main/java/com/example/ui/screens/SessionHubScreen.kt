@@ -118,6 +118,17 @@ fun SessionHubScreen(
                     }
 
                     IconButton(
+                        onClick = { viewModel.navigateTo(AppScreen.CourtCall) },
+                        modifier = Modifier.testTag("court_call_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cast,
+                            contentDescription = "Court Call display",
+                            tint = tokens.textPrimary
+                        )
+                    }
+
+                    IconButton(
                         onClick = { viewModel.navigateTo(AppScreen.Setup) },
                         modifier = Modifier.testTag("session_settings_button")
                     ) {

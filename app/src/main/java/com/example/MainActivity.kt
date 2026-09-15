@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import com.example.ui.screens.CourtCallScreen
 import com.example.ui.screens.LiveScoreboardScreen
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.screens.SetupScreen
@@ -63,6 +64,9 @@ fun PickleballAppContent(viewModel: SessionViewModel) {
             }
             is AppScreen.Setup -> {
                 SetupScreen(viewModel = viewModel)
+            }
+            is AppScreen.CourtCall -> {
+                CourtCallScreen(viewModel = viewModel)
             }
         }
     }

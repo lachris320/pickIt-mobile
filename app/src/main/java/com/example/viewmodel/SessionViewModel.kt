@@ -21,6 +21,7 @@ sealed class AppScreen {
     object SessionHub : AppScreen()
     data class LiveScoreboard(val courtId: Int) : AppScreen()
     data class StandaloneScoreboard(val match: Match) : AppScreen()
+    object CourtCall : AppScreen()
 }
 
 class SessionViewModel(application: Application) : AndroidViewModel(application) {
