@@ -22,22 +22,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.Court
 import com.example.model.RotationRecommendation
-import com.example.model.Team
 import com.example.ui.screens.CourtCallState
 import com.example.ui.theme.LocalPickItTokens
 
 /** Longest single player name that renders before it is capped with an ellipsis. */
 private const val NAME_CAP = 14
 
+/**
+ * Caps a single player name. Pass this to Team.playerNames so each name is capped INDIVIDUALLY
+ * and both survive — capping the joined "A & B" string would drop the second player entirely on
+ * long names.
+ */
 private fun capName(name: String): String =
     if (name.length <= NAME_CAP) name else name.take(NAME_CAP - 1) + "…"
-
-/**
- * A team's matchup label. Each player's name is capped INDIVIDUALLY so both survive — capping the
- * joined "A & B" string would drop the second player entirely on long names.
- */
-private fun cappedMatchup(team: Team): String =
-    "${capName(team.player1.name)} & ${capName(team.player2.name)}"
 
 private fun stateTag(state: CourtCallState) = when (state) {
     CourtCallState.UP_NOW -> "court_call_tile_up_now"
@@ -141,12 +138,12 @@ fun CourtCallTile(
                     }
                     if (state == CourtCallState.LIVE) {
                         Text(
-                            text = cappedMatchup(match.teamA),
+                            text = match.teamA.playerNames(::capName),
                             style = MaterialTheme.typography.titleMedium,
                             color = tokens.teamA, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = cappedMatchup(match.teamB),
+                            text = match.teamB.playerNames(::capName),
                             style = MaterialTheme.typography.titleMedium,
                             color = tokens.teamB, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
@@ -156,7 +153,7 @@ fun CourtCallTile(
             CourtCallState.UP_NOW, CourtCallState.READY -> {
                 recommendation?.let { r ->
                     Text(
-                        text = cappedMatchup(r.teamA),
+                        text = r.teamA.playerNames(::capName),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, color = nameColor,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -166,7 +163,7 @@ fun CourtCallTile(
                         style = MaterialTheme.typography.titleSmall, color = nameColor,
                     )
                     Text(
-                        text = cappedMatchup(r.teamB),
+                        text = r.teamB.playerNames(::capName),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, color = nameColor,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
