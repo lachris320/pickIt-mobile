@@ -69,6 +69,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.example.fixtures.Fixtures
+import com.example.ui.screens.CourtCallScreen
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.AppScreen
@@ -102,13 +103,25 @@ class CourtCallRouteTest {
         rule.setContent { MyApplicationTheme { SessionHubScreen(viewModel = vm) } }
         rule.onNodeWithTag("court_call_button").assertDoesNotExist()
     }
+
+    @Test fun closeButton_returnsToHub() {
+        val vm = SessionViewModel(app())
+        vm.navigateTo(AppScreen.CourtCall)
+        rule.setContent { MyApplicationTheme { CourtCallScreen(viewModel = vm) } }
+
+        rule.onNodeWithTag("court_call_close").assertIsDisplayed()
+        rule.onNodeWithTag("court_call_close").performClick()
+        rule.runOnIdle { assertEquals(AppScreen.SessionHub, vm.currentScreen.value) }
+    }
 }
 ```
+
+> The close affordance renders in every board state (including the null-session empty state), so this test needs no injected session. `BackHandler` (system-back exit) is wired in the same screen; it is exercised by the real-Activity flow in Task 6 rather than re-asserted here. Note: `BackHandler` reads `LocalOnBackPressedDispatcherOwner.current` — `createComposeRule()` is backed by a `ComponentActivity`, which provides that owner via `ViewTreeOnBackPressedDispatcherOwner`, so rendering `CourtCallScreen` under the plain compose rule does not crash.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `./gradlew :app:testDebugUnitTest --tests "com.example.ui.CourtCallRouteTest"`
-Expected: FAIL — `AppScreen.CourtCall` unresolved and no `court_call_button` node.
+Expected: FAIL — `AppScreen.CourtCall` unresolved, no `court_call_button` node, and no `court_call_close` node.
 
 - [ ] **Step 3: Add the `CourtCall` route**
 
@@ -150,17 +163,26 @@ Create `app/src/main/java/com/example/ui/screens/CourtCallScreen.kt`:
 ```kotlin
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import com.example.ui.theme.DarkTokens
 import com.example.ui.theme.LocalPickItTokens
+import com.example.viewmodel.AppScreen
 import com.example.viewmodel.SessionViewModel
 
 @Composable
@@ -169,6 +191,11 @@ fun CourtCallScreen(
     modifier: Modifier = Modifier,
 ) {
     val session by viewModel.session.collectAsState()
+
+    // System-back exit (no BackHandler exists anywhere else in the app, and the board is a
+    // single-Activity screen — without this, back would finish the Activity and leave the app).
+    BackHandler { viewModel.navigateTo(AppScreen.SessionHub) }
+
     CompositionLocalProvider(LocalPickItTokens provides DarkTokens) {
         val tokens = LocalPickItTokens.current
         Box(
@@ -180,6 +207,21 @@ fun CourtCallScreen(
             // Fleshed out in Tasks 4–7. `session` is read here so the stub compiles
             // against the same flow the real board uses.
             @Suppress("UNUSED_EXPRESSION") session
+
+            // The only touch target on the board: a small, deliberately low-contrast corner close.
+            IconButton(
+                onClick = { viewModel.navigateTo(AppScreen.SessionHub) },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .testTag("court_call_close"),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close Court Call",
+                    tint = tokens.textMuted,
+                )
+            }
         }
     }
 }
@@ -475,8 +517,16 @@ class CourtCallTileTest {
         rule.onNodeWithText("11").assertIsDisplayed()
         rule.onNodeWithText("7").assertIsDisplayed()
     }
+
+    @Test fun pausedTile_rendersPausedTag() {
+        val court = Court(id = 6, name = "Court 6", status = CourtStatus.PAUSED)
+        rule.setContent { MyApplicationTheme { CourtCallTile(court = court, state = CourtCallState.PAUSED, recommendation = null) } }
+        rule.onAllNodesWithTag("court_call_tile_paused").assertCountEquals(1)
+    }
 }
 ```
+
+> The two idle-tile assertions rely on the **per-player** cap: each of "Player 0" and "Player 3" is capped on its own (see `cappedMatchup` in Step 3), so both survive and Step 4's PASS is truthful. Capping the joined string would have dropped "Player 3" and failed the test.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -495,10 +545,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -513,14 +561,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.Court
 import com.example.model.RotationRecommendation
+import com.example.model.Team
 import com.example.ui.screens.CourtCallState
 import com.example.ui.theme.LocalPickItTokens
 
-/** Longest name that renders on one line before it is capped with an ellipsis. */
+/** Longest single player name that renders before it is capped with an ellipsis. */
 private const val NAME_CAP = 14
 
 private fun capName(name: String): String =
     if (name.length <= NAME_CAP) name else name.take(NAME_CAP - 1) + "…"
+
+/**
+ * A team's matchup label. Each player's name is capped INDIVIDUALLY so both survive — capping the
+ * joined "A & B" string would drop the second player entirely on long names.
+ */
+private fun cappedMatchup(team: Team): String =
+    "${capName(team.player1.name)} & ${capName(team.player2.name)}"
 
 private fun stateTag(state: CourtCallState) = when (state) {
     CourtCallState.UP_NOW -> "court_call_tile_up_now"
@@ -592,7 +648,6 @@ fun CourtCallTile(
             color = numberColor,
             modifier = Modifier.testTag("court_call_tile_${court.id}"),
         )
-        Spacer(Modifier.width(0.dp))
         Text(
             text = stateLabel(state),
             style = MaterialTheme.typography.headlineSmall,
@@ -625,12 +680,12 @@ fun CourtCallTile(
                     }
                     if (state == CourtCallState.LIVE) {
                         Text(
-                            text = capName(match.teamA.playerNames()),
+                            text = cappedMatchup(match.teamA),
                             style = MaterialTheme.typography.titleMedium,
                             color = tokens.teamA, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = capName(match.teamB.playerNames()),
+                            text = cappedMatchup(match.teamB),
                             style = MaterialTheme.typography.titleMedium,
                             color = tokens.teamB, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
@@ -641,7 +696,7 @@ fun CourtCallTile(
                 // Names-only. Never render primaryReason / detailedReason.
                 recommendation?.let { r ->
                     Text(
-                        text = capName(r.teamA.playerNames()),
+                        text = cappedMatchup(r.teamA),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, color = nameColor,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -651,7 +706,7 @@ fun CourtCallTile(
                         style = MaterialTheme.typography.titleSmall, color = nameColor,
                     )
                     Text(
-                        text = capName(r.teamB.playerNames()),
+                        text = cappedMatchup(r.teamB),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, color = nameColor,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -667,7 +722,7 @@ fun CourtCallTile(
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `./gradlew :app:testDebugUnitTest --tests "com.example.ui.CourtCallTileTest"`
-Expected: PASS (all three).
+Expected: PASS (all four).
 
 - [ ] **Step 5: Commit**
 
@@ -814,6 +869,7 @@ Replace the whole file `app/src/main/java/com/example/ui/screens/CourtCallScreen
 ```kotlin
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -824,6 +880,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -840,6 +900,7 @@ import com.example.model.OpenPlaySession
 import com.example.ui.components.CourtCallTile
 import com.example.ui.theme.DarkTokens
 import com.example.ui.theme.LocalPickItTokens
+import com.example.viewmodel.AppScreen
 import com.example.viewmodel.SessionViewModel
 
 @Composable
@@ -848,6 +909,11 @@ fun CourtCallScreen(
     modifier: Modifier = Modifier,
 ) {
     val session by viewModel.session.collectAsState()
+
+    // System-back exit (no other BackHandler exists in the app; the board is a single-Activity
+    // screen, so without this, back would finish the Activity and leave the app).
+    BackHandler { viewModel.navigateTo(AppScreen.SessionHub) }
+
     CompositionLocalProvider(LocalPickItTokens provides DarkTokens) {
         val tokens = LocalPickItTokens.current
         Box(
@@ -884,6 +950,22 @@ fun CourtCallScreen(
                         )
                     }
                 }
+            }
+
+            // The only touch target on the board: a small, deliberately low-contrast corner close.
+            // Rendered last (top of the Box) and in EVERY state so exit is always reachable.
+            IconButton(
+                onClick = { viewModel.navigateTo(AppScreen.SessionHub) },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .testTag("court_call_close"),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close Court Call",
+                    tint = tokens.textMuted,
+                )
             }
         }
     }
@@ -980,6 +1062,7 @@ Create `app/src/test/java/com/example/ui/CourtCallPaginationTest.kt`:
 package com.example.ui
 
 import android.app.Application
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -1024,7 +1107,11 @@ class CourtCallPaginationTest {
 }
 ```
 
-(`assertDoesNotExist` is imported via `androidx.compose.ui.test.assertDoesNotExist` — add it to the imports.)
+> **VALIDATE the test-clock ↔ `delay` coupling before relying on it.** `overCapacity_showsIndicator_andAutoAdvances` assumes `rule.mainClock.advanceTimeBy(10_000)` drives the `kotlinx.coroutines.delay` inside the `LaunchedEffect` under Robolectric. That coupling holds when Compose's test clock also drives the `LaunchedEffect` coroutine dispatcher, but it is **not guaranteed** on every Robolectric/Compose combination. When you first run this step (Step 4), if the indicator does **not** advance to `2 / 2`:
+> - **Fallback A (looper):** after `advanceTimeBy(10_000)`, pump the main looper —
+>   `shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(10))` (import `org.robolectric.Shadows.shadowOf`) — then `rule.waitForIdle()` before the assertion.
+> - **Fallback B (frame-driven cycle):** re-key the auto-advance so it is driven by the frame clock the test controls — replace the `while (true) { delay(10_000); ... }` body with an accumulator over `withInfiniteAnimationFrameNanos { frameNanos -> ... }` (advance the page when accumulated frame nanos cross 10s). `advanceTimeBy` deterministically drives the frame clock, so the page turns without relying on `delay`.
+> Pick whichever makes the assertion pass with `mainClock.autoAdvance = false`; keep the ~10s interval either way. **Task 7's pulse-clear step (`delay(2_000)`) has the same dependency — apply the same chosen fallback there.**
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -1052,8 +1139,6 @@ private fun CourtCallGrid(session: OpenPlaySession) {
 
         val pages = courts.chunked(capacity)
         var pageIndex by rememberSaveable(pages.size) { mutableStateOf(0) }
-        // Keep the index valid if the page count shrank between recompositions.
-        if (pageIndex > pages.lastIndex) pageIndex = pages.lastIndex
 
         // ~10s auto-advance, only when there is more than one page.
         if (pages.size > 1) {
@@ -1065,26 +1150,32 @@ private fun CourtCallGrid(session: OpenPlaySession) {
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            CourtGridLayout(
-                courts = pages[pageIndex],
-                session = session,
-                primaryId = primaryId,
-                columns = columns,
-                modifier = Modifier.weight(1f),
-            )
-            if (pages.size > 1) {
-                val tokens = LocalPickItTokens.current
-                Text(
-                    text = "${pageIndex + 1} / ${pages.size}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = tokens.textSecondary,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 12.dp)
-                        .testTag("court_call_page_indicator"),
+        if (pages.isNotEmpty()) {
+            // DERIVE the clamped page for display — never write pageIndex during composition
+            // (a snapshot-write-in-composition is a Compose error). pageIndex is only mutated
+            // from the auto-advance effect above.
+            val page = pageIndex.coerceIn(0, pages.lastIndex)
+            Column(modifier = Modifier.fillMaxSize()) {
+                CourtGridLayout(
+                    courts = pages[page],
+                    session = session,
+                    primaryId = primaryId,
+                    columns = columns,
+                    modifier = Modifier.weight(1f),
                 )
+                if (pages.size > 1) {
+                    val tokens = LocalPickItTokens.current
+                    Text(
+                        text = "${page + 1} / ${pages.size}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = tokens.textSecondary,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(bottom = 12.dp)
+                            .testTag("court_call_page_indicator"),
+                    )
+                }
             }
         }
     }
@@ -1370,11 +1461,10 @@ package com.example.ui
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ApplicationProvider
-import com.example.model.Court
-import com.example.model.CourtStatus
 import com.example.fixtures.Fixtures
 import com.example.ui.screens.CourtCallScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -1415,8 +1505,6 @@ class CourtCallTransitionTest {
     }
 }
 ```
-
-(Add `androidx.compose.ui.test.assertDoesNotExist` to the imports.)
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -1472,66 +1560,127 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.matchParentSize
 ```
 
-- [ ] **Step 4: Track transitions in `CourtCallScreen` and drive the hold**
+- [ ] **Step 4: Track transitions and drive the hold — all in one place**
 
-In `CourtCallScreen`'s `CourtCallGrid`, compute the derived states, remember the previous snapshot, and mark pulsing courts. Add, near the top of `CourtCallGrid` (after `primaryId`):
-
-```kotlin
-    // Map every court to its current derived state.
-    val currentStates: Map<Int, CourtCallState> = courts.associate { court ->
-        court.id to courtDisplayState(
-            court = court,
-            hasRecommendation = session.activeRecommendations[court.id] != null,
-            isPrimaryReady = court.id == primaryId,
-        )
-    }
-    var prevStates by remember { mutableStateOf(currentStates) }
-    val pulsing = remember { mutableStateMapOf<Int, Boolean>() }
-    var justCalledCourtId by remember { mutableStateOf<Int?>(null) }
-
-    LaunchedEffect(currentStates) {
-        val transitioned = currentStates.filter { (id, s) ->
-            val before = prevStates[id]
-            before != s && (s == CourtCallState.UP_NOW || s == CourtCallState.FINAL)
-        }.keys
-        prevStates = currentStates
-        transitioned.forEach { id ->
-            pulsing[id] = true
-            justCalledCourtId = id
-        }
-    }
-    // Clear each pulse after a short, non-looping window.
-    LaunchedEffect(pulsing.keys.toList()) {
-        if (pulsing.isNotEmpty()) {
-            delay(2_000)
-            pulsing.clear()
-            justCalledCourtId = null
-        }
-    }
-```
-
-Then thread `pulsing` and `justCalledCourtId` into the paginated layout. Update the `CourtCallGrid` `BoxWithConstraints` body: after computing `pages`, if `justCalledCourtId` names a court on another page, snap to it and skip the auto-advance while it is held:
+**Single location for all view-state.** Every new `remember`/`LaunchedEffect` (snapshot, pulsing, held page, pagination) lives **inside `BoxWithConstraints`** — the one composable that has `session`, `courts`, `primaryId`, `pages`, and `pageIndex` all in scope. Do **not** put any of it up in `CourtCallGrid`'s outer body and thread it down. Replace the **entire body of `BoxWithConstraints`** established in Task 5 with the following:
 
 ```kotlin
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val columns = when {
+            maxWidth < 600.dp -> 1
+            maxWidth < 1000.dp -> 2
+            else -> 3
+        }
+        val rows = if (maxHeight < 480.dp) 1 else 2
+        val capacity = (columns * rows).coerceAtLeast(1)
+        val pages = courts.chunked(capacity)
+
+        // Derived state per court, for transition detection.
+        val currentStates: Map<Int, CourtCallState> = courts.associate { court ->
+            court.id to courtDisplayState(
+                court = court,
+                hasRecommendation = session.activeRecommendations[court.id] != null,
+                isPrimaryReady = court.id == primaryId,
+            )
+        }
+        var prevStates by remember { mutableStateOf(currentStates) }
+        val pulsing = remember { mutableStateMapOf<Int, Boolean>() }
+        var justCalledCourtId by remember { mutableStateOf<Int?>(null) }
+        var pageIndex by rememberSaveable(pages.size) { mutableStateOf(0) }
+
+        // Detect transitions TO UP NOW / FINAL -> pulse + remember the just-called court.
+        LaunchedEffect(currentStates) {
+            val transitioned = currentStates.filter { (id, s) ->
+                prevStates[id] != s && (s == CourtCallState.UP_NOW || s == CourtCallState.FINAL)
+            }.keys
+            prevStates = currentStates
+            transitioned.forEach { id ->
+                pulsing[id] = true
+                justCalledCourtId = id
+            }
+        }
+        // Clear each pulse after a short, non-looping window.
+        // NOTE: this `delay` has the same test-clock dependency as Task 5's auto-advance —
+        // apply the SAME fallback you chose there (Task 5, Step 1 note) if the pulse-clear
+        // assertion does not fire under `mainClock.advanceTimeBy`.
+        LaunchedEffect(pulsing.keys.toList()) {
+            if (pulsing.isNotEmpty()) {
+                delay(2_000)
+                pulsing.clear()
+                justCalledCourtId = null
+            }
+        }
         // Hold on a just-called court's page instead of cycling away from it.
-        val heldPage = justCalledCourtId?.let { id -> pages.indexOfFirst { page -> page.any { it.id == id } } }
+        val heldPage = justCalledCourtId?.let { id -> pages.indexOfFirst { p -> p.any { it.id == id } } }
         LaunchedEffect(heldPage) {
             if (heldPage != null && heldPage >= 0) pageIndex = heldPage
         }
-
+        // ~10s auto-advance, only when there is more than one page AND nothing is being held.
         if (pages.size > 1 && justCalledCourtId == null) {
-            LaunchedEffect(pages.size) {
+            LaunchedEffect(pages.size, justCalledCourtId) {
                 while (true) {
                     delay(10_000)
                     pageIndex = (pageIndex + 1) % pages.size
                 }
             }
         }
+
+        if (pages.isNotEmpty()) {
+            val page = pageIndex.coerceIn(0, pages.lastIndex)  // derived, never written in composition
+            Column(modifier = Modifier.fillMaxSize()) {
+                CourtGridLayout(
+                    courts = pages[page],
+                    session = session,
+                    primaryId = primaryId,
+                    columns = columns,
+                    pulsing = pulsing,
+                    modifier = Modifier.weight(1f),
+                )
+                if (pages.size > 1) {
+                    val tokens = LocalPickItTokens.current
+                    Text(
+                        text = "${page + 1} / ${pages.size}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = tokens.textSecondary,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(bottom = 12.dp)
+                            .testTag("court_call_page_indicator"),
+                    )
+                }
+            }
+        }
+    }
 ```
 
-Replace the earlier unconditional auto-advance `LaunchedEffect` from Task 5 with the guarded one above. Finally, pass `pulsing` down to the tile in `CourtGridLayout` — add a `pulsing: Map<Int, Boolean>` parameter and set `pulsing = pulsing[court.id] == true` on each `CourtCallTile`, and pass `pulsing = pulsing` where `CourtGridLayout` is called.
+Then give `CourtGridLayout` a `pulsing` parameter and pass it to each tile — change its signature and the `CourtCallTile` call:
 
-> **State-hoisting note for the implementer:** `currentStates`, `prevStates`, `pulsing`, and `justCalledCourtId` are computed in `CourtCallGrid` (which has `session`), but `pages`/`pageIndex`/`heldPage` live in the `BoxWithConstraints` child. Keep them in one composable: move the snapshot/pulse `remember`s and `LaunchedEffect`s to just inside `BoxWithConstraints` (which is still inside `CourtCallGrid`, so `session`, `courts`, and `primaryId` are all in scope). This keeps a single owner for the view state and avoids prop-drilling `justCalledCourtId` back up.
+```kotlin
+@Composable
+private fun CourtGridLayout(
+    courts: List<Court>,
+    session: OpenPlaySession,
+    primaryId: Int?,
+    columns: Int,
+    pulsing: Map<Int, Boolean>,
+    modifier: Modifier = Modifier,
+) {
+    // ... unchanged layout; in the inner rowCourts.forEach, pass pulsing to the tile:
+    //     CourtCallTile(
+    //         court = court,
+    //         state = state,
+    //         recommendation = session.activeRecommendations[court.id],
+    //         pulsing = pulsing[court.id] == true,
+    //     )
+}
+```
+
+Add these imports to `CourtCallScreen.kt` (on top of Task 5's pagination imports):
+```kotlin
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+```
 
 - [ ] **Step 5: Run the test to verify it passes**
 
@@ -1668,7 +1817,7 @@ git commit -m "chore(court-call): finalize acceptance sweep for big-screen displ
 
 | Spec section | Implemented by |
 |---|---|
-| §4 Navigation & app-theme-frame escape (route, Hub entry, exit, full-bleed, keep-awake/immersive, single lifecycle owner) | Task 1 (route + `court_call_button` + branch), Task 6 (full-bleed restructure + `BoardDisplayHygiene` lifecycle owner) |
+| §4 Navigation & app-theme-frame escape (route, Hub entry, exit, full-bleed, keep-awake/immersive, single lifecycle owner) | Task 1 (route + `court_call_button` + branch; **exit**: `court_call_close` corner affordance + `BackHandler`, both in `CourtCallScreen`, tested by `CourtCallRouteTest.closeButton_returnsToHub`), Task 6 (full-bleed restructure + `BoardDisplayHygiene` lifecycle owner) |
 | §5 Derived display state (six states, precedence, one-standout invariant) | Task 2 (`courtDisplayState` + `primaryReadyCourtId`), Task 3 (per-state tile treatments) |
 | §6 Distance-legibility (court number largest, TV type floors, name truncation, names-only no reasons) | Task 3 (`CourtCallTile`, `NAME_CAP`, `displayLarge`/`headlineSmall`/`titleMedium`) |
 | §7 Fixed dark board palette (forced `DarkTokens`, no `colorScheme`, full-bleed canvas) | Task 4 (`CompositionLocalProvider(LocalPickItTokens provides DarkTokens)` + canvas paint), Task 6 (escape frame), Task 8 (baseline proving theme-independence) |
