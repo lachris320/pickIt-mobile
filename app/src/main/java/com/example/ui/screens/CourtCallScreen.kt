@@ -53,6 +53,10 @@ import com.example.viewmodel.AppScreen
 import com.example.viewmodel.SessionViewModel
 import kotlinx.coroutines.delay
 
+private const val PULSE_MS = 2_000L
+private const val PAGE_HOLD_MS = 6_000L
+private const val PAGE_CYCLE_MS = 10_000L
+
 @Composable
 fun CourtCallScreen(
     viewModel: SessionViewModel,
@@ -86,6 +90,7 @@ fun CourtCallScreen(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
+                            .padding(end = 64.dp)
                             .background(tokens.statusPaused)
                             .padding(vertical = 12.dp)
                             .testTag("court_call_paused_banner"),
@@ -202,8 +207,13 @@ private fun CourtCallGrid(session: OpenPlaySession) {
         }
         LaunchedEffect(pulsing.keys.toList()) {
             if (pulsing.isNotEmpty()) {
-                delay(2_000)
+                delay(PULSE_MS)
                 pulsing.clear()
+            }
+        }
+        LaunchedEffect(justCalledCourtId) {
+            if (justCalledCourtId != null) {
+                delay(PAGE_HOLD_MS)
                 justCalledCourtId = null
             }
         }
@@ -212,9 +222,9 @@ private fun CourtCallGrid(session: OpenPlaySession) {
             if (heldPage != null && heldPage >= 0) pageIndex = heldPage
         }
         if (pages.size > 1 && justCalledCourtId == null) {
-            LaunchedEffect(pages.size, justCalledCourtId) {
+            LaunchedEffect(pages.size) {
                 while (true) {
-                    delay(10_000)
+                    delay(PAGE_CYCLE_MS)
                     pageIndex = (pageIndex + 1) % pages.size
                 }
             }
@@ -226,7 +236,7 @@ private fun CourtCallGrid(session: OpenPlaySession) {
                 CourtGridLayout(
                     courts = pages[page],
                     session = session,
-                    primaryId = primaryId,
+                    states = currentStates,
                     columns = columns,
                     pulsing = pulsing,
                     modifier = Modifier.weight(1f),
@@ -253,7 +263,7 @@ private fun CourtCallGrid(session: OpenPlaySession) {
 private fun CourtGridLayout(
     courts: List<Court>,
     session: OpenPlaySession,
-    primaryId: Int?,
+    states: Map<Int, CourtCallState>,
     columns: Int,
     pulsing: Map<Int, Boolean>,
     modifier: Modifier = Modifier,
@@ -268,12 +278,7 @@ private fun CourtGridLayout(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 rowCourts.forEach { court ->
-                    val hasRec = session.activeRecommendations[court.id] != null
-                    val state = courtDisplayState(
-                        court = court,
-                        hasRecommendation = hasRec,
-                        isPrimaryReady = court.id == primaryId,
-                    )
+                    val state = states[court.id] ?: CourtCallState.OPEN
                     Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                         CourtCallTile(
                             court = court,
