@@ -7,10 +7,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ApplicationProvider
+import com.example.data.local.PickleballDatabase
 import com.example.fixtures.Fixtures
 import com.example.ui.screens.CourtCallScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.SessionViewModel
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,6 +27,13 @@ class CourtCallScreenTest {
     private fun app() = ApplicationProvider.getApplicationContext<Application>()
     private fun vmWith(s: com.example.model.OpenPlaySession) =
         SessionViewModel(app()).apply { loadSessionForTest(s) }
+
+    @Before fun cleanDb() {
+        // The Room DB (singleton + file) is shared across Robolectric test classes;
+        // clear any session another test persisted so the empty state is shown.
+        PickleballDatabase.resetInstanceForTest()
+        ApplicationProvider.getApplicationContext<Application>().deleteDatabase("pickleball_sessions.db")
+    }
 
     @Test fun board_hasExactlyOneUpNow_andOneReady() {
         rule.setContent { MyApplicationTheme { CourtCallScreen(viewModel = vmWith(Fixtures.boardSession())) } }
