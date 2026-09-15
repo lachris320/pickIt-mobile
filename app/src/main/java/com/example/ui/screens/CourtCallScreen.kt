@@ -27,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -175,13 +176,43 @@ private fun CourtCallGrid(session: OpenPlaySession) {
         }
         val rows = if (maxHeight < 480.dp) 1 else 2
         val capacity = (columns * rows).coerceAtLeast(1)
-
         val pages = courts.chunked(capacity)
+
+        val currentStates: Map<Int, CourtCallState> = courts.associate { court ->
+            court.id to courtDisplayState(
+                court = court,
+                hasRecommendation = session.activeRecommendations[court.id] != null,
+                isPrimaryReady = court.id == primaryId,
+            )
+        }
+        var prevStates by remember { mutableStateOf(currentStates) }
+        val pulsing = remember { mutableStateMapOf<Int, Boolean>() }
+        var justCalledCourtId by remember { mutableStateOf<Int?>(null) }
         var pageIndex by rememberSaveable(pages.size) { mutableStateOf(0) }
 
-        // ~10s auto-advance, only when there is more than one page.
-        if (pages.size > 1) {
-            LaunchedEffect(pages.size) {
+        LaunchedEffect(currentStates) {
+            val transitioned = currentStates.filter { (id, s) ->
+                prevStates[id] != s && (s == CourtCallState.UP_NOW || s == CourtCallState.FINAL)
+            }.keys
+            prevStates = currentStates
+            transitioned.forEach { id ->
+                pulsing[id] = true
+                justCalledCourtId = id
+            }
+        }
+        LaunchedEffect(pulsing.keys.toList()) {
+            if (pulsing.isNotEmpty()) {
+                delay(2_000)
+                pulsing.clear()
+                justCalledCourtId = null
+            }
+        }
+        val heldPage = justCalledCourtId?.let { id -> pages.indexOfFirst { p -> p.any { it.id == id } } }
+        LaunchedEffect(heldPage) {
+            if (heldPage != null && heldPage >= 0) pageIndex = heldPage
+        }
+        if (pages.size > 1 && justCalledCourtId == null) {
+            LaunchedEffect(pages.size, justCalledCourtId) {
                 while (true) {
                     delay(10_000)
                     pageIndex = (pageIndex + 1) % pages.size
@@ -190,7 +221,6 @@ private fun CourtCallGrid(session: OpenPlaySession) {
         }
 
         if (pages.isNotEmpty()) {
-            // DERIVE the clamped page for display — never write pageIndex during composition.
             val page = pageIndex.coerceIn(0, pages.lastIndex)
             Column(modifier = Modifier.fillMaxSize()) {
                 CourtGridLayout(
@@ -198,6 +228,7 @@ private fun CourtCallGrid(session: OpenPlaySession) {
                     session = session,
                     primaryId = primaryId,
                     columns = columns,
+                    pulsing = pulsing,
                     modifier = Modifier.weight(1f),
                 )
                 if (pages.size > 1) {
@@ -224,6 +255,7 @@ private fun CourtGridLayout(
     session: OpenPlaySession,
     primaryId: Int?,
     columns: Int,
+    pulsing: Map<Int, Boolean>,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -247,6 +279,7 @@ private fun CourtGridLayout(
                             court = court,
                             state = state,
                             recommendation = session.activeRecommendations[court.id],
+                            pulsing = pulsing[court.id] == true,
                         )
                     }
                 }

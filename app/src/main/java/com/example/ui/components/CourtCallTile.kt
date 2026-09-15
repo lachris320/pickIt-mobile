@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,6 +63,7 @@ fun CourtCallTile(
     state: CourtCallState,
     recommendation: RotationRecommendation?,
     modifier: Modifier = Modifier,
+    pulsing: Boolean = false,
 ) {
     val tokens = LocalPickItTokens.current
     val shape = RoundedCornerShape(tokens.radiusLg)
@@ -88,17 +90,18 @@ fun CourtCallTile(
     }
     val nameColor: Color = if (state == CourtCallState.UP_NOW) tokens.onAccent else tokens.textSecondary
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .clip(shape)
-            .background(fill, shape)
-            .border(3.dp, borderColor, shape)
-            .testTag(stateTag(state))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .background(fill, shape)
+                .border(3.dp, borderColor, shape)
+                .testTag(stateTag(state))
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
         Text(
             text = court.id.toString(),
             style = MaterialTheme.typography.displayLarge,
@@ -171,6 +174,15 @@ fun CourtCallTile(
                 }
             }
             CourtCallState.OPEN, CourtCallState.PAUSED -> Unit
+        }
+        }
+        if (pulsing) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(6.dp, tokens.attention, shape)
+                    .testTag("court_call_tile_pulse_${court.id}"),
+            )
         }
     }
 }
