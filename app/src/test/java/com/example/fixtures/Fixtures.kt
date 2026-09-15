@@ -69,4 +69,55 @@ object Fixtures {
             ),
         )
     }
+
+    /**
+     * Mixed-state board: court 1 UP NOW (lowest AVAILABLE w/ rec), court 2 READY (AVAILABLE w/ rec),
+     * court 3 LIVE (IN_PROGRESS, not completed), court 4 FINAL (IN_PROGRESS but match completed),
+     * court 5 OPEN (AVAILABLE, no rec).
+     */
+    fun boardSession(): OpenPlaySession {
+        val p = (0..15).map { player(it) }
+        val liveMatch = PickleballGameEngine.createMatch(
+            courtId = 3,
+            teamA = Team(TeamId.TEAM_A, p[8], p[9]),
+            teamB = Team(TeamId.TEAM_B, p[10], p[11]),
+        ).copy(scoreA = 6, scoreB = 4)
+        val finalMatch = PickleballGameEngine.createMatch(
+            courtId = 4,
+            teamA = Team(TeamId.TEAM_A, p[12], p[13]),
+            teamB = Team(TeamId.TEAM_B, p[14], p[15]),
+        ).copy(scoreA = 11, scoreB = 7, isCompleted = true)
+        return OpenPlaySession(
+            id = "fix_board",
+            name = "Board Session",
+            rotationPolicy = RotationPolicy.FOUR_OFF_FOUR_ON,
+            courts = listOf(
+                Court(id = 1, name = "Court 1", status = CourtStatus.AVAILABLE),
+                Court(id = 2, name = "Court 2", status = CourtStatus.AVAILABLE),
+                Court(id = 3, name = "Court 3", status = CourtStatus.IN_PROGRESS, currentMatch = liveMatch),
+                Court(id = 4, name = "Court 4", status = CourtStatus.IN_PROGRESS, currentMatch = finalMatch),
+                Court(id = 5, name = "Court 5", status = CourtStatus.AVAILABLE),
+            ),
+            roster = p,
+            activeRecommendations = mapOf(
+                1 to rec(1, p.subList(0, 4)),
+                2 to rec(2, p.subList(4, 8)),
+            ),
+        )
+    }
+
+    /** Seven AVAILABLE courts each with a recommendation, for pagination tests. */
+    fun manyCourtsSession(): OpenPlaySession {
+        val p = (0..27).map { player(it) }
+        val courts = (1..7).map { id -> Court(id = id, name = "Court $id", status = CourtStatus.AVAILABLE) }
+        val recs = (1..7).associateWith { id -> rec(id, p.subList((id - 1) * 4, id * 4)) }
+        return OpenPlaySession(
+            id = "fix_many",
+            name = "Many Courts",
+            rotationPolicy = RotationPolicy.FOUR_OFF_FOUR_ON,
+            courts = courts,
+            roster = p,
+            activeRecommendations = recs,
+        )
+    }
 }
