@@ -25,11 +25,19 @@ sealed class AppScreen {
     object CourtCall : AppScreen()
 }
 
-class SessionViewModel(application: Application) : AndroidViewModel(application) {
+class SessionViewModel @JvmOverloads constructor(
+    application: Application,
+    // Test-only seam: a fake repository can be injected to exercise load-failure paths
+    // deterministically. @JvmOverloads keeps the public `(Application)` JVM constructor that
+    // AndroidViewModelFactory / `by viewModels()` relies on, so production wiring is unchanged.
+    private val repositoryOverride: SessionRepository? = null
+) : AndroidViewModel(application) {
 
     private val repository: SessionRepository by lazy {
-        val db = PickleballDatabase.getInstance(application)
-        SessionRepository(db.sessionDao())
+        repositoryOverride ?: run {
+            val db = PickleballDatabase.getInstance(application)
+            SessionRepository(db.sessionDao())
+        }
     }
 
     private val _currentScreen = MutableStateFlow<AppScreen>(AppScreen.SessionHub)
@@ -74,20 +82,35 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         // fresh install and we start with NO active session (the Hub shows its empty
         // state — see SessionHubScreen). No fake demo session is seeded.
         viewModelScope.launch {
-            val savedSession = repository.loadLatestSession()
-            if (savedSession != null && savedSession.roster.isNotEmpty() && !testSessionInjected) {
-                // Re-evaluate recommendations
-                val recs = mutableMapOf<Int, RotationRecommendation>()
-                savedSession.courts.filter { it.status == CourtStatus.AVAILABLE }.forEach { c ->
-                    val r = RotationEngine.generateRecommendation(savedSession, c.id, null)
-                    if (r != null) recs[c.id] = r
+            try {
+                val savedSession = repository.loadLatestSession()
+                if (savedSession != null && savedSession.roster.isNotEmpty() && !testSessionInjected) {
+                    // Re-evaluate recommendations
+                    val recs = mutableMapOf<Int, RotationRecommendation>()
+                    savedSession.courts.filter { it.status == CourtStatus.AVAILABLE }.forEach { c ->
+                        val r = RotationEngine.generateRecommendation(savedSession, c.id, null)
+                        if (r != null) recs[c.id] = r
+                    }
+                    _session.value = savedSession.copy(activeRecommendations = recs)
                 }
-                _session.value = savedSession.copy(activeRecommendations = recs)
+                // No saved session -> _session stays at its null default.
+                // Deliberately NO `else { _session.value = null }`: this coroutine resumes
+                // after a test's loadSessionForTest(), and a null write would clobber the
+                // injected fixture.
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Preserve structured-concurrency cancellation — never swallow it.
+                throw e
+            } catch (e: Exception) {
+                // The persisted session could not be read (e.g. the Room DB was torn down
+                // out from under a leaked, never-cleared VM whose init coroutine is still
+                // pending). Do NOT let this escape into viewModelScope as an uncaught
+                // exception; log it and start with no active session (empty state).
+                android.util.Log.w(
+                    "SessionViewModel",
+                    "Failed to load saved session; starting with no active session",
+                    e
+                )
             }
-            // No saved session -> _session stays at its null default.
-            // Deliberately NO `else { _session.value = null }`: this coroutine resumes
-            // after a test's loadSessionForTest(), and a null write would clobber the
-            // injected fixture.
         }
     }
 

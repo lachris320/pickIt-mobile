@@ -6,11 +6,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
-class SessionRepository(private val sessionDao: SessionDao) {
+// `open` so tests can inject a fake repository that fails `loadLatestSession()` deterministically
+// (see SessionViewModelLoadFailureTest) without spinning up a real Room DB.
+open class SessionRepository(private val sessionDao: SessionDao) {
 
     val allSessions: Flow<List<SessionEntity>> = sessionDao.getAllSessions()
 
-    suspend fun loadLatestSession(): OpenPlaySession? = withContext(Dispatchers.IO) {
+    open suspend fun loadLatestSession(): OpenPlaySession? = withContext(Dispatchers.IO) {
         val sessionEntity = sessionDao.getLatestSession() ?: return@withContext null
         val courtsEntities = sessionDao.getCourtsForSession(sessionEntity.id)
         val rosterEntities = sessionDao.getRosterForSession(sessionEntity.id)
