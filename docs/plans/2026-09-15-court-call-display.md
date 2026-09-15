@@ -245,7 +245,7 @@ Add branch (after the `AppScreen.Setup` branch):
 - [ ] **Step 7: Run the test to verify it passes**
 
 Run: `./gradlew :app:testDebugUnitTest --tests "com.example.ui.CourtCallRouteTest"`
-Expected: PASS (both tests).
+Expected: PASS (all three tests: `hubButton_navigatesToCourtCall`, `nullSessionHub_hasNoCourtCallButton`, `closeButton_returnsToHub`).
 
 - [ ] **Step 8: Commit**
 
@@ -954,6 +954,10 @@ fun CourtCallScreen(
 
             // The only touch target on the board: a small, deliberately low-contrast corner close.
             // Rendered last (top of the Box) and in EVERY state so exit is always reachable.
+            // NOTE: in the PAUSED state the TopCenter paused banner and this TopEnd close can
+            // sit on the same row; close is drawn last so it stays tappable. Give the paused
+            // banner trailing padding/width < full so it does not run under the close icon —
+            // eyeball this in the Task 8 Roborazzi capture and nudge if they visually collide.
             IconButton(
                 onClick = { viewModel.navigateTo(AppScreen.SessionHub) },
                 modifier = Modifier
