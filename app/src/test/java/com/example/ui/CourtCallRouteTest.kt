@@ -1,11 +1,8 @@
 package com.example.ui
 
-import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.test.core.app.ApplicationProvider
-import com.example.data.local.PickleballDatabase
 import com.example.fixtures.Fixtures
 import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.CourtCallScreen
@@ -21,12 +18,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36])
 class CourtCallRouteTest : RobolectricComposeTest() {
 
-    @Before fun cleanDb() {
-        // The Room DB (singleton + file) is shared across Robolectric test classes;
-        // clear any session another test persisted so the empty state is shown.
-        PickleballDatabase.resetInstanceForTest()
-        ApplicationProvider.getApplicationContext<Application>().deleteDatabase("pickleball_sessions.db")
-    }
+    @Before fun cleanDb() = resetSharedDb()
 
     @Test fun hubButton_navigatesToCourtCall() {
         val vm = SessionViewModel(app())

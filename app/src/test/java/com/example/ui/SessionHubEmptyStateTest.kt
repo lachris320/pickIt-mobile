@@ -3,7 +3,6 @@ package com.example.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import com.example.data.local.PickleballDatabase
 import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -17,12 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36])
 class SessionHubEmptyStateTest : RobolectricComposeTest() {
 
-    @Before fun cleanDb() {
-        // The Room DB (singleton + file) is shared across Robolectric test classes;
-        // clear any session another test persisted so the empty state is shown.
-        PickleballDatabase.resetInstanceForTest()
-        app().deleteDatabase("pickleball_sessions.db")
-    }
+    @Before fun cleanDb() = resetSharedDb()
 
     @Test fun nullSession_showsStartCta_thatNavigatesToSetup() {
         val vm = SessionViewModel(app())
