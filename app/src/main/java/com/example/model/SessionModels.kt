@@ -59,7 +59,8 @@ data class Team(
     val player1: Player,
     val player2: Player
 ) {
-    fun playerNames(): String = "${player1.name} & ${player2.name}"
+    fun playerNames(transform: (String) -> String = { it }): String =
+        "${transform(player1.name)} & ${transform(player2.name)}"
 }
 
 data class RallyEvent(

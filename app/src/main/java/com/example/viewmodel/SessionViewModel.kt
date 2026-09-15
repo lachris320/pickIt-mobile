@@ -3,6 +3,7 @@ package com.example.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.local.PickleballDatabase
 import com.example.data.local.ThemePreferences
 import com.example.data.repository.SessionRepository
@@ -56,6 +57,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     @androidx.annotation.VisibleForTesting
     fun loadSessionForTest(s: OpenPlaySession) {
+        if (!BuildConfig.DEBUG) return // inert no-op in release builds
         testSessionInjected = true
         _session.value = s
     }

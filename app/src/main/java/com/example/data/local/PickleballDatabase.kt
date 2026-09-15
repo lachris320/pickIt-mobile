@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.BuildConfig
 
 @Database(
     entities = [
@@ -38,6 +39,7 @@ abstract class PickleballDatabase : RoomDatabase() {
         /** Test-only: close and clear the singleton so a test can start from a clean database. */
         @androidx.annotation.VisibleForTesting
         fun resetInstanceForTest() {
+            if (!BuildConfig.DEBUG) return // inert no-op in release builds
             synchronized(this) {
                 INSTANCE?.close()
                 INSTANCE = null
