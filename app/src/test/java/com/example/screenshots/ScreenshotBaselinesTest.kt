@@ -1,12 +1,10 @@
 package com.example.screenshots
 
-import android.app.Application
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
-import androidx.test.core.app.ApplicationProvider
 import com.example.fixtures.Fixtures
 import com.example.model.OpenPlaySession
+import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.LiveScoreboardScreen
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.screens.SetupScreen
@@ -15,10 +13,7 @@ import com.example.ui.theme.ThemeMode
 import com.example.viewmodel.SessionViewModel
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -27,13 +22,9 @@ import org.robolectric.annotation.GraphicsMode
  * so captures are deterministic. Record: `./gradlew :app:recordRoborazziDebug`.
  * Verify:  `./gradlew :app:verifyRoborazziDebug`.
  */
-@RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
-class ScreenshotBaselinesTest {
-    @get:Rule val rule = createComposeRule()
-
-    private fun app() = ApplicationProvider.getApplicationContext<Application>()
+class ScreenshotBaselinesTest : RobolectricComposeTest() {
 
     private fun vmWith(session: OpenPlaySession): SessionViewModel =
         SessionViewModel(app()).apply { loadSessionForTest(session) }
