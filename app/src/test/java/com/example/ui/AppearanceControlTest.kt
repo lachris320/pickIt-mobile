@@ -1,9 +1,7 @@
 package com.example.ui
 
-import android.app.Application
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.test.core.app.ApplicationProvider
 import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.SetupScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -17,7 +15,7 @@ import org.robolectric.annotation.Config
 class AppearanceControlTest : RobolectricComposeTest() {
 
     @Test fun appearanceControl_setsThemeMode() {
-        val vm = SessionViewModel(ApplicationProvider.getApplicationContext<Application>())
+        val vm = SessionViewModel(app())
         rule.setContent { MyApplicationTheme { SetupScreen(viewModel = vm) } }
         rule.onNodeWithTag("appearance_button").performClick()
         rule.onNodeWithTag("appearance_option_LIGHT").performClick()

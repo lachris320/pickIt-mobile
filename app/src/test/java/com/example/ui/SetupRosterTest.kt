@@ -1,13 +1,11 @@
 package com.example.ui
 
-import android.app.Application
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.test.core.app.ApplicationProvider
 import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.SetupScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -19,7 +17,7 @@ import org.robolectric.annotation.Config
 class SetupRosterTest : RobolectricComposeTest() {
 
     @Test fun rosterStartsEmpty_andLoadSamplePopulatesIt() {
-        val vm = SessionViewModel(ApplicationProvider.getApplicationContext<Application>())
+        val vm = SessionViewModel(app())
         rule.setContent { MyApplicationTheme { SetupScreen(viewModel = vm) } }
 
         // Roster starts empty: no chips exist anywhere.

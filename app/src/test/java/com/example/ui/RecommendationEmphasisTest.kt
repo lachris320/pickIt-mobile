@@ -1,11 +1,9 @@
 package com.example.ui
 
-import android.app.Application
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.test.core.app.ApplicationProvider
 import com.example.fixtures.Fixtures
 import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.SessionHubScreen
@@ -18,7 +16,7 @@ import org.robolectric.annotation.Config
 class RecommendationEmphasisTest : RobolectricComposeTest() {
 
     @Test fun twoReadyCourts_onlyTheLowestIdIsPrimary() {
-        val vm = SessionViewModel(ApplicationProvider.getApplicationContext<Application>())
+        val vm = SessionViewModel(app())
         vm.loadSessionForTest(Fixtures.twoReadyCourtsSession())
         rule.setContent { MyApplicationTheme { SessionHubScreen(viewModel = vm) } }
         rule.onAllNodesWithTag("primary_call_button").assertCountEquals(1)

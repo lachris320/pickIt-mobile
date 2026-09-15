@@ -1,10 +1,8 @@
 package com.example.ui
 
-import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.test.core.app.ApplicationProvider
 import com.example.fixtures.Fixtures
 import com.example.testing.RobolectricComposeTest
 import com.example.ui.screens.LiveScoreboardScreen
@@ -19,7 +17,7 @@ import org.robolectric.annotation.Config
 class AbandonConfirmTest : RobolectricComposeTest() {
 
     @Test fun abandon_requiresConfirmation() {
-        val vm = SessionViewModel(ApplicationProvider.getApplicationContext<Application>())
+        val vm = SessionViewModel(app())
         vm.loadSessionForTest(Fixtures.inProgressSession())
         vm.navigateTo(AppScreen.LiveScoreboard(1))
         rule.setContent { MyApplicationTheme { LiveScoreboardScreen(courtId = 1, viewModel = vm) } }
