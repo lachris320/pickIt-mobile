@@ -23,6 +23,12 @@ class PickleballEngineTest {
         return m
     }
 
+    // Reaches 1-5-2 (Team A serving, server 2), then a side-out brings Team B in at odd score 5.
+    private val ODD_SIDEOUT_B = arrayOf(
+        TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
+        TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_B, TeamId.TEAM_B
+    )
+
     @Test
     fun `initial match starts at 0-0-2 for serving team`() {
         val match = PickleballGameEngine.createMatch(courtId = 1, teamA = teamA, teamB = teamB)
@@ -119,9 +125,7 @@ class PickleballEngineTest {
     fun `side out at odd receiving score serves from RIGHT not LEFT`() {
         val start = PickleballGameEngine.createMatch(courtId = 1, teamA = teamA, teamB = teamB)
         // ODD_SIDEOUT_B: reaches 1-5-2 (Team A serving, server 2), then Team B side-outs in.
-        val match = play(start, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
-            TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_A,
-            TeamId.TEAM_B, TeamId.TEAM_B)
+        val match = play(start, *ODD_SIDEOUT_B)
 
         assertEquals(1, match.scoreA)
         assertEquals(5, match.scoreB)
@@ -136,9 +140,7 @@ class PickleballEngineTest {
     @Test
     fun `serve alternates correctly after the corrected side out`() {
         val start = PickleballGameEngine.createMatch(courtId = 1, teamA = teamA, teamB = teamB)
-        var match = play(start, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
-            TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_A,
-            TeamId.TEAM_B, TeamId.TEAM_B)
+        var match = play(start, *ODD_SIDEOUT_B)
         assertEquals(CourtSide.RIGHT, match.servingSide) // 5-1-1
 
         match = PickleballGameEngine.recordRally(match, TeamId.TEAM_B) // 6-1-1
@@ -184,9 +186,7 @@ class PickleballEngineTest {
     @Test
     fun `undo across an odd-score side out restores the corrected RIGHT side`() {
         val start = PickleballGameEngine.createMatch(courtId = 1, teamA = teamA, teamB = teamB)
-        var match = play(start, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
-            TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_A,
-            TeamId.TEAM_B, TeamId.TEAM_B)
+        var match = play(start, *ODD_SIDEOUT_B)
         match = PickleballGameEngine.recordRally(match, TeamId.TEAM_B) // 6-1-1 LEFT
         match = PickleballGameEngine.undoLastRally(match)              // replay back to 5-1-1
 
@@ -211,9 +211,7 @@ class PickleballEngineTest {
         assertEquals("5 - 0 - 2", bServer2.calloutString())
 
         // Team B serving, server 1, at scoreB=5 / scoreA=1 -> "5 - 1 - 1" (not "1 - 5 - 1").
-        val bServer1 = play(startA, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
-            TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_A,
-            TeamId.TEAM_B, TeamId.TEAM_B)
+        val bServer1 = play(startA, *ODD_SIDEOUT_B)
         assertEquals(TeamId.TEAM_B, bServer1.servingTeam)
         assertEquals(1, bServer1.serverNumber)
         assertEquals("5 - 1 - 1", bServer1.calloutString())
