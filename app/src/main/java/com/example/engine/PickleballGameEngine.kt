@@ -105,13 +105,13 @@ object PickleballGameEngine {
 
                 val newServingTeamObj = if (newServingTeam == TeamId.TEAM_A) current.teamA else current.teamB
                 val newReceivingTeamObj = if (newServingTeam == TeamId.TEAM_A) current.teamB else current.teamA
-                val currentServingScore = if (newServingTeam == TeamId.TEAM_A) newScoreA else newScoreB
 
-                // Serve side is determined by whether the serving team's score is even (Right) or odd (Left)
-                newServingSide = if (currentServingScore % 2 == 0) CourtSide.RIGHT else CourtSide.LEFT
-
+                // The incoming team's FIRST serve after a side-out is ALWAYS from the
+                // right/even court. Score parity picks which PLAYER stands in the right
+                // court, not which side the first serve comes from.
+                newServingSide = CourtSide.RIGHT
                 newServer = newServingTeamObj.player1
-                newReceiver = if (newServingSide == CourtSide.RIGHT) newReceivingTeamObj.player1 else newReceivingTeamObj.player2
+                newReceiver = newReceivingTeamObj.player1
                 description = "Side Out! Serve transfers to ${newServingTeamObj.playerNames()}"
             }
         }
