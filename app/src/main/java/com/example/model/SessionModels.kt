@@ -101,7 +101,9 @@ data class Match(
     val winnerTeamId: TeamId? = null
 ) {
     fun calloutString(): String {
-        return "$scoreA - $scoreB - $serverNumber"
+        val servingScore = if (servingTeam == TeamId.TEAM_A) scoreA else scoreB
+        val receivingScore = if (servingTeam == TeamId.TEAM_A) scoreB else scoreA
+        return "$servingScore - $receivingScore - $serverNumber"
     }
 
     fun isLegalWin(): Boolean {

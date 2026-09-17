@@ -198,6 +198,28 @@ class PickleballEngineTest {
     }
 
     @Test
+    fun `callout leads with the serving team score for both teams`() {
+        // Team A serving at start: 0-0-2 (A leads because A serves) — unchanged.
+        val startA = PickleballGameEngine.createMatch(courtId = 1, teamA = teamA, teamB = teamB)
+        assertEquals("0 - 0 - 2", startA.calloutString())
+
+        // Team B serving, server 2, at scoreB=5 / scoreA=0 -> "5 - 0 - 2" (not "0 - 5 - 2").
+        val bServer2 = play(startA, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
+            TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_A)
+        assertEquals(TeamId.TEAM_B, bServer2.servingTeam)
+        assertEquals(2, bServer2.serverNumber)
+        assertEquals("5 - 0 - 2", bServer2.calloutString())
+
+        // Team B serving, server 1, at scoreB=5 / scoreA=1 -> "5 - 1 - 1" (not "1 - 5 - 1").
+        val bServer1 = play(startA, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_B,
+            TeamId.TEAM_B, TeamId.TEAM_B, TeamId.TEAM_A, TeamId.TEAM_A, TeamId.TEAM_A,
+            TeamId.TEAM_B, TeamId.TEAM_B)
+        assertEquals(TeamId.TEAM_B, bServer1.servingTeam)
+        assertEquals(1, bServer1.serverNumber)
+        assertEquals("5 - 1 - 1", bServer1.calloutString())
+    }
+
+    @Test
     fun `rotation engine generates fair 4-off recommendation`() {
         val players = (1..8).map {
             Player(id = "p$it", name = "Player $it", status = ParticipantStatus.AVAILABLE)
