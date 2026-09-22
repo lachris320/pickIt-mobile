@@ -118,6 +118,17 @@ fun SessionHubScreen(
                     }
 
                     IconButton(
+                        onClick = { viewModel.navigateTo(AppScreen.LiveRanking) },
+                        modifier = Modifier.testTag("live_ranking_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Leaderboard,
+                            contentDescription = "Live Ranking display",
+                            tint = tokens.textPrimary
+                        )
+                    }
+
+                    IconButton(
                         onClick = { viewModel.navigateTo(AppScreen.CourtCall) },
                         modifier = Modifier.testTag("court_call_button")
                     ) {

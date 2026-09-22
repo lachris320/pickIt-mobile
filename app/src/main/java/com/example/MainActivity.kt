@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.example.ui.screens.CourtCallScreen
+import com.example.ui.screens.LiveRankingScreen
 import com.example.ui.screens.LiveScoreboardScreen
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.screens.SetupScreen
@@ -45,23 +46,26 @@ fun PickleballAppContent(viewModel: SessionViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
 
     Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
-        if (screen is AppScreen.CourtCall) {
-            // Full-bleed: no safeDrawingPadding, no MaterialTheme.colorScheme Surface.
-            // CourtCallScreen paints DarkTokens.canvas edge-to-edge itself.
-            CourtCallScreen(viewModel = viewModel)
-        } else {
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                when (screen) {
-                    is AppScreen.SessionHub -> SessionHubScreen(viewModel = viewModel)
-                    is AppScreen.LiveScoreboard -> LiveScoreboardScreen(courtId = screen.courtId, viewModel = viewModel)
-                    is AppScreen.StandaloneScoreboard -> StandaloneScoreboardScreen(match = screen.match, viewModel = viewModel)
-                    is AppScreen.Setup -> SetupScreen(viewModel = viewModel)
-                    is AppScreen.CourtCall -> Unit // handled above; keeps `when` exhaustive
+        when {
+            // Full-bleed screens: no safeDrawingPadding, no MaterialTheme.colorScheme Surface.
+            // Each paints DarkTokens.canvas edge-to-edge itself.
+            screen is AppScreen.CourtCall -> CourtCallScreen(viewModel = viewModel)
+            screen is AppScreen.LiveRanking -> LiveRankingScreen(viewModel = viewModel)
+            else -> {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .safeDrawingPadding(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    when (screen) {
+                        is AppScreen.SessionHub -> SessionHubScreen(viewModel = viewModel)
+                        is AppScreen.LiveScoreboard -> LiveScoreboardScreen(courtId = screen.courtId, viewModel = viewModel)
+                        is AppScreen.StandaloneScoreboard -> StandaloneScoreboardScreen(match = screen.match, viewModel = viewModel)
+                        is AppScreen.Setup -> SetupScreen(viewModel = viewModel)
+                        is AppScreen.CourtCall -> Unit // handled above; keeps `when` exhaustive
+                        is AppScreen.LiveRanking -> Unit // handled above; keeps `when` exhaustive
+                    }
                 }
             }
         }
