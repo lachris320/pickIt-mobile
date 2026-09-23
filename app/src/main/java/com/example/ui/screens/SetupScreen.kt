@@ -349,6 +349,18 @@ fun SetupScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.navigateTo(AppScreen.SessionHistory(AppScreen.Setup)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setup_history_button"),
+                ) {
+                    Text("Session History", color = tokens.textSecondary)
+                }
+            }
         }
     }
 }

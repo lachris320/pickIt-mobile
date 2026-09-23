@@ -26,6 +26,7 @@ sealed class AppScreen {
     data class StandaloneScoreboard(val match: Match) : AppScreen()
     object CourtCall : AppScreen()
     object LiveRanking : AppScreen()
+    data class SessionHistory(val origin: AppScreen) : AppScreen()
 }
 
 class SessionViewModel @JvmOverloads constructor(
