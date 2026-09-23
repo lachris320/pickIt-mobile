@@ -23,20 +23,7 @@ open class SessionRepository(private val sessionDao: SessionDao) {
         val courtsEntities = sessionDao.getCourtsForSession(sessionEntity.id)
         val rosterEntities = sessionDao.getRosterForSession(sessionEntity.id)
 
-        val roster = rosterEntities.map { p ->
-            Player(
-                id = p.playerId,
-                name = p.name,
-                status = ParticipantStatus.valueOf(p.status),
-                queuedTimestamp = p.queuedTimestamp,
-                restingTimestamp = p.restingTimestamp,
-                matchesPlayed = p.matchesPlayed,
-                matchesWon = p.matchesWon,
-                totalPointsScored = p.totalPointsScored,
-                totalPointsConceded = p.totalPointsConceded,
-                consecutiveGamesOnCourt = p.consecutiveGamesOnCourt
-            )
-        }
+        val roster = rosterEntities.map { it.toDomainPlayer() }
 
         val courts = courtsEntities.map { c ->
             Court(

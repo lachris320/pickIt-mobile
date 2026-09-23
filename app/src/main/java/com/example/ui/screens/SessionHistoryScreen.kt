@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -69,7 +70,7 @@ fun SessionHistoryScreen(
     val session by sessionViewModel.session.collectAsStateWithLifecycle()
     val isLoaded by sessionViewModel.isSessionLoaded.collectAsStateWithLifecycle()
 
-    val uiState = remember(data, session, isLoaded) {
+    val uiState = remember(data, session?.id, isLoaded) {
         assembleHistoryState(data, session?.id, isLoaded)
     }
 
@@ -144,7 +145,7 @@ private fun CenterBox(content: @Composable () -> Unit) {
 @Composable
 private fun HistoryList(
     items: List<SessionListItem>,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+    listState: LazyListState,
     onOpen: (String) -> Unit,
 ) {
     val tokens = LocalPickItTokens.current
@@ -180,7 +181,7 @@ private fun HistoryList(
 }
 
 @Composable
-private fun AllTimeList(rows: List<RankedPlayer>, listState: androidx.compose.foundation.lazy.LazyListState) {
+private fun AllTimeList(rows: List<RankedPlayer>, listState: LazyListState) {
     val tokens = LocalPickItTokens.current
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item {
@@ -215,7 +216,7 @@ private fun AllTimeList(rows: List<RankedPlayer>, listState: androidx.compose.fo
                         style = MaterialTheme.typography.bodyLarge, color = tokens.textPrimary)
                     Text("${r.wins}–${r.losses}", style = MaterialTheme.typography.bodyMedium, color = tokens.textSecondary)
                     Text("  ${r.wins + r.losses}g", style = MaterialTheme.typography.bodyMedium, color = tokens.textMuted)
-                    Text("  ${if (r.pointDiff > 0) "+${r.pointDiff}" else r.pointDiff}",
+                    Text("  ${formatDiff(r.pointDiff)}",
                         modifier = Modifier.padding(start = 8.dp),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = tokens.textPrimary)
                 }
@@ -253,7 +254,7 @@ private fun SessionDetailView(detail: SessionDetail) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text("${p.rank}. ${p.name}", color = tokens.textPrimary)
-                        Text("${p.wins}–${p.losses}  ${if (p.pointDiff > 0) "+${p.pointDiff}" else p.pointDiff}",
+                        Text("${p.wins}–${p.losses}  ${formatDiff(p.pointDiff)}",
                             color = tokens.textSecondary)
                     }
                 }
