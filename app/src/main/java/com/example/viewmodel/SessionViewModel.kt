@@ -49,6 +49,9 @@ class SessionViewModel @JvmOverloads constructor(
     private val _session = MutableStateFlow<OpenPlaySession?>(null)
     val session: StateFlow<OpenPlaySession?> = _session.asStateFlow()
 
+    private val _isSessionLoaded = MutableStateFlow(false)
+    val isSessionLoaded: StateFlow<Boolean> = _isSessionLoaded.asStateFlow()
+
     // Standalone scoreboard match if not in session
     private val _standaloneMatch = MutableStateFlow<Match?>(null)
     val standaloneMatch: StateFlow<Match?> = _standaloneMatch.asStateFlow()
@@ -71,6 +74,7 @@ class SessionViewModel @JvmOverloads constructor(
         if (!BuildConfig.DEBUG) return // inert no-op in release builds
         testSessionInjected = true
         _session.value = s
+        _isSessionLoaded.value = true
     }
 
     val frequentPlayers = listOf(
@@ -117,6 +121,7 @@ class SessionViewModel @JvmOverloads constructor(
             // Deliberately NO `else { _session.value = null }`: this coroutine resumes
             // after a test's loadSessionForTest(), and a null write would clobber the
             // injected fixture.
+            _isSessionLoaded.value = true
         }
     }
 

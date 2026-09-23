@@ -43,6 +43,12 @@ interface SessionDao {
     @Query("SELECT * FROM matches WHERE sessionId = :sessionId ORDER BY endTime DESC")
     suspend fun getMatchesForSession(sessionId: String): List<CompletedMatchEntity>
 
+    @Query("SELECT * FROM matches ORDER BY endTime DESC")
+    fun getAllMatches(): Flow<List<CompletedMatchEntity>>
+
+    @Query("SELECT * FROM roster")
+    fun getAllRoster(): Flow<List<PlayerEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCompletedMatch(match: CompletedMatchEntity)
 

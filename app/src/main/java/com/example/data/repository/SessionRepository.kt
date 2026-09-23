@@ -4,6 +4,7 @@ import com.example.data.local.*
 import com.example.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 // `open` so tests can inject a fake repository that fails `loadLatestSession()` deterministically
@@ -11,6 +12,11 @@ import kotlinx.coroutines.withContext
 open class SessionRepository(private val sessionDao: SessionDao) {
 
     val allSessions: Flow<List<SessionEntity>> = sessionDao.getAllSessions()
+
+    val allMatches: Flow<List<MatchResult>> =
+        sessionDao.getAllMatches().map { list -> list.map { it.toMatchResult() } }
+
+    val allRosterEntities: Flow<List<PlayerEntity>> = sessionDao.getAllRoster()
 
     open suspend fun loadLatestSession(): OpenPlaySession? = withContext(Dispatchers.IO) {
         val sessionEntity = sessionDao.getLatestSession() ?: return@withContext null
