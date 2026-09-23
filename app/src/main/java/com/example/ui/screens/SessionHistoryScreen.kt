@@ -103,12 +103,6 @@ fun SessionHistoryScreen(
             )
         }
 
-        val detailId = selectedSessionId
-        if (detailId != null) {
-            SessionDetailView(detail = buildSessionDetail(data, detailId))
-            return@Column
-        }
-
         when (val s = uiState) {
             is HistoryUiState.Loading -> CenterBox {
                 CircularProgressIndicator(modifier = Modifier.testTag("session_history_loading"))
@@ -117,20 +111,25 @@ fun SessionHistoryScreen(
                 Text("Couldn't load history.", color = tokens.textMuted, modifier = Modifier.testTag("session_history_error"))
             }
             is HistoryUiState.Content -> {
-                TabRow(selectedTabIndex = selectedTab, containerColor = tokens.canvas) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 },
-                        modifier = Modifier.testTag("history_tab")) { Text("History", modifier = Modifier.padding(12.dp)) }
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 },
-                        modifier = Modifier.testTag("all_time_tab")) { Text("All-Time", modifier = Modifier.padding(12.dp)) }
-                }
-                if (selectedTab == 0) {
-                    HistoryList(
-                        items = s.pastSessions,
-                        listState = historyListState,
-                        onOpen = { selectedSessionId = it },
-                    )
+                val detailId = selectedSessionId
+                if (detailId != null) {
+                    SessionDetailView(detail = buildSessionDetail(data, detailId))
                 } else {
-                    AllTimeList(rows = s.allTime, listState = allTimeListState)
+                    TabRow(selectedTabIndex = selectedTab, containerColor = tokens.canvas) {
+                        Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 },
+                            modifier = Modifier.testTag("history_tab")) { Text("History", modifier = Modifier.padding(12.dp)) }
+                        Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 },
+                            modifier = Modifier.testTag("all_time_tab")) { Text("All-Time", modifier = Modifier.padding(12.dp)) }
+                    }
+                    if (selectedTab == 0) {
+                        HistoryList(
+                            items = s.pastSessions,
+                            listState = historyListState,
+                            onOpen = { selectedSessionId = it },
+                        )
+                    } else {
+                        AllTimeList(rows = s.allTime, listState = allTimeListState)
+                    }
                 }
             }
         }

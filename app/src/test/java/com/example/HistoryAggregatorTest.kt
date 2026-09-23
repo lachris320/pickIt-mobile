@@ -79,6 +79,23 @@ class HistoryAggregatorTest {
         assertEquals("Ana", ana.name) // latest endTime spelling wins
     }
 
+    @Test fun `rankAllTime display spelling falls back to highest matchId when endTime ties`() {
+        val matches = listOf(
+            match("m1", a1 = "Ana", a2 = "Bo", b1 = "Cy", b2 = "Dot", scoreA = 11, scoreB = 2, winner = TeamId.TEAM_A, endTime = 5),
+            match("m9", a1 = "ANA", a2 = "Bo", b1 = "Cy", b2 = "Dot", scoreA = 11, scoreB = 2, winner = TeamId.TEAM_A, endTime = 5),
+        )
+        val ana = HistoryAggregator.rankAllTime(matches).single { it.id == "ana" }
+        assertEquals("ANA", ana.name) // same endTime -> higher matchId ("m9" > "m1") wins
+    }
+
+    @Test fun `rankAllTime display spelling falls back to lowest slot when endTime and matchId tie`() {
+        val matches = listOf(
+            match("m1", a1 = "ana", a2 = "ANA", b1 = "Cy", b2 = "Dot", scoreA = 11, scoreB = 2, winner = TeamId.TEAM_A, endTime = 5),
+        )
+        val ana = HistoryAggregator.rankAllTime(matches).single { it.id == "ana" }
+        assertEquals("ana", ana.name) // same match -> lower slot (teamA[0]=0 vs teamA[1]=1) wins
+    }
+
     @Test fun `rankAllTime empty input yields empty`() {
         assertEquals(emptyList<Any>(), HistoryAggregator.rankAllTime(emptyList()))
     }

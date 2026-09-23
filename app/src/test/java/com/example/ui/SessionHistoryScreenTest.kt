@@ -253,6 +253,54 @@ class SessionHistoryScreenTest : RobolectricComposeTest() {
         rule.onNodeWithTag("session_history_error").assertIsDisplayed()
     }
 
+    @Test fun errorWhileDetailOpen_showsError_notUnavailable() {
+        val gate = CompletableDeferred<Unit>()
+        val sessionEntity = SessionEntity(
+            id = "d1", name = "Detail Night", startTime = 0L,
+            rotationPolicy = "FOUR_OFF_FOUR_ON", consecutiveGameCap = 4, targetScore = 11,
+            isPaused = false, isCompleted = false,
+        )
+        fun rosterRow(idx: Int, name: String) = PlayerEntity(
+            sessionId = "d1", playerId = "d1p$idx", name = name, status = "AVAILABLE",
+            queuedTimestamp = 0L, restingTimestamp = 0L, matchesPlayed = 1,
+            matchesWon = if (idx <= 2) 1 else 0,
+            totalPointsScored = if (idx <= 2) 11 else 5, totalPointsConceded = if (idx <= 2) 5 else 11,
+            consecutiveGamesOnCourt = 0,
+        )
+        val rosterEntities = listOf(
+            rosterRow(1, "Ann"), rosterRow(2, "Bob"), rosterRow(3, "Cyd"), rosterRow(4, "Dan"),
+        )
+        val matchEntity = CompletedMatchEntity(
+            matchId = "d1-m0", sessionId = "d1", courtId = 1,
+            teamAPlayer1 = "d1p1", teamAPlayer2 = "d1p2", teamBPlayer1 = "d1p3", teamBPlayer2 = "d1p4",
+            scoreA = 11, scoreB = 5, winnerTeam = "TEAM_A", startTime = 0L, endTime = 1L,
+        )
+        val fakeDao = object : FakeSessionDao() {
+            override fun getAllSessions(): Flow<List<SessionEntity>> = flowOf(listOf(sessionEntity))
+            override fun getAllRoster(): Flow<List<PlayerEntity>> = flowOf(rosterEntities)
+            override fun getAllMatches(): Flow<List<CompletedMatchEntity>> = flow {
+                emit(listOf(matchEntity))
+                gate.await()
+                throw IllegalStateException("boom")
+            }
+        }
+        val hvm = HistoryViewModel(app(), repositoryOverride = SessionRepository(fakeDao))
+        val vm = readyVmNoSession()
+        content(vm, hvm)
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithTag("session_row_d1").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("session_row_d1").performClick()
+        rule.onNodeWithTag("session_detail").assertIsDisplayed()
+
+        gate.complete(Unit)
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithTag("session_history_error").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("session_history_error").assertIsDisplayed()
+        rule.onNodeWithTag("session_detail_unavailable").assertDoesNotExist()
+    }
+
     @Test fun vanishedSelection_showsSessionNoLongerAvailable() {
         seedSession("s1", "Mon", fourPlayers("s1"), wins = 1)
         val vm = readyVmNoSession()
