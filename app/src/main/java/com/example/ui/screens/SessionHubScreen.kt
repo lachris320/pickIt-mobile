@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,6 +66,13 @@ fun SessionHubScreen(
                     ),
                     modifier = Modifier.height(56.dp).testTag("start_session_button"),
                 ) { Text("Start a session", fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.navigateTo(AppScreen.SessionHistory(AppScreen.SessionHub)) },
+                    modifier = Modifier.testTag("session_history_button"),
+                ) {
+                    Text("Session History", color = LocalPickItTokens.current.textSecondary)
+                }
             }
         }
         return
@@ -114,6 +122,17 @@ fun SessionHubScreen(
                             text = "Queue (${availableQueue.size})",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.navigateTo(AppScreen.SessionHistory(AppScreen.SessionHub)) },
+                        modifier = Modifier.testTag("session_history_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = "Session History",
+                            tint = tokens.textPrimary
                         )
                     }
 

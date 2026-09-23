@@ -2,17 +2,11 @@ package com.example.viewmodel
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
-import com.example.data.local.CompletedMatchEntity
-import com.example.data.local.CourtEntity
-import com.example.data.local.PlayerEntity
-import com.example.data.local.SessionDao
-import com.example.data.local.SessionEntity
 import com.example.data.repository.SessionRepository
 import com.example.model.OpenPlaySession
+import com.example.testing.FakeSessionDao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -55,29 +49,8 @@ class SessionViewModelLoadFailureTest {
 
     private fun app(): Application = ApplicationProvider.getApplicationContext()
 
-    /**
-     * Stub dao for the fake repository. `getAllSessions()` returns an empty flow because
-     * [SessionRepository] reads it eagerly in a property initializer; every other member throws,
-     * since the fake overrides `loadLatestSession()` and nothing else is ever called.
-     */
-    private object UnusedDao : SessionDao {
-        override fun getAllSessions(): Flow<List<SessionEntity>> = emptyFlow()
-        override suspend fun getLatestSession(): SessionEntity? = throw NotImplementedError()
-        override suspend fun getSessionById(sessionId: String): SessionEntity? = throw NotImplementedError()
-        override suspend fun insertSession(session: SessionEntity) = throw NotImplementedError()
-        override suspend fun getCourtsForSession(sessionId: String): List<CourtEntity> = throw NotImplementedError()
-        override suspend fun insertCourts(courts: List<CourtEntity>) = throw NotImplementedError()
-        override suspend fun deleteCourtsForSession(sessionId: String) = throw NotImplementedError()
-        override suspend fun getRosterForSession(sessionId: String): List<PlayerEntity> = throw NotImplementedError()
-        override suspend fun insertRoster(roster: List<PlayerEntity>) = throw NotImplementedError()
-        override suspend fun deleteRosterForSession(sessionId: String) = throw NotImplementedError()
-        override suspend fun getMatchesForSession(sessionId: String): List<CompletedMatchEntity> = throw NotImplementedError()
-        override suspend fun insertCompletedMatch(match: CompletedMatchEntity) = throw NotImplementedError()
-        override suspend fun deleteSessionById(sessionId: String) = throw NotImplementedError()
-    }
-
     /** Fake whose load fails, standing in for a query against a torn-down / closed database. */
-    private class FailingRepository : SessionRepository(UnusedDao) {
+    private class FailingRepository : SessionRepository(FakeSessionDao()) {
         override suspend fun loadLatestSession(): OpenPlaySession? =
             throw IllegalStateException("Cannot perform this operation because the connection pool has been closed")
     }

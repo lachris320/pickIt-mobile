@@ -17,16 +17,19 @@ import androidx.compose.ui.Modifier
 import com.example.ui.screens.CourtCallScreen
 import com.example.ui.screens.LiveRankingScreen
 import com.example.ui.screens.LiveScoreboardScreen
+import com.example.ui.screens.SessionHistoryScreen
 import com.example.ui.screens.SessionHubScreen
 import com.example.ui.screens.SetupScreen
 import com.example.ui.screens.StandaloneScoreboardScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.AppScreen
+import com.example.viewmodel.HistoryViewModel
 import com.example.viewmodel.SessionViewModel
 
 class MainActivity : ComponentActivity() {
 
     private val sessionViewModel: SessionViewModel by viewModels()
+    private val historyViewModel: HistoryViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,14 +38,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by sessionViewModel.themeMode.collectAsState()
             MyApplicationTheme(themeMode = themeMode) {
-                PickleballAppContent(viewModel = sessionViewModel)
+                PickleballAppContent(viewModel = sessionViewModel, historyViewModel = historyViewModel)
             }
         }
     }
 }
 
 @Composable
-fun PickleballAppContent(viewModel: SessionViewModel) {
+fun PickleballAppContent(viewModel: SessionViewModel, historyViewModel: HistoryViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
 
     Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
@@ -65,6 +68,11 @@ fun PickleballAppContent(viewModel: SessionViewModel) {
                         is AppScreen.Setup -> SetupScreen(viewModel = viewModel)
                         is AppScreen.CourtCall -> Unit // handled above; keeps `when` exhaustive
                         is AppScreen.LiveRanking -> Unit // handled above; keeps `when` exhaustive
+                        is AppScreen.SessionHistory -> SessionHistoryScreen(
+                            sessionViewModel = viewModel,
+                            historyViewModel = historyViewModel,
+                            origin = screen.origin,
+                        )
                     }
                 }
             }
