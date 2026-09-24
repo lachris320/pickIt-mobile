@@ -4,6 +4,7 @@ import com.example.engine.HistoryAggregator
 import com.example.engine.RankingEngine
 import com.example.model.MatchResult
 import com.example.model.Player
+import com.example.model.PlayerDetail
 import com.example.model.RankedPlayer
 import com.example.model.SessionListItem
 import com.example.model.SessionMeta
@@ -81,6 +82,17 @@ fun buildSessionDetail(data: HistoryData, sessionId: String): SessionDetail {
     val matches = data.matchesBySession[sessionId].orEmpty()
         .sortedWith(compareByDescending<MatchResult> { it.endTime }.thenByDescending { it.matchId })
     return SessionDetail.Found(meta, standings, matches)
+}
+
+/** Resolve a player-detail view from loaded data; NotAvailable if not loaded or the id has no results. */
+fun resolvePlayerDetail(data: HistoryData, normalizedId: String, activeSessionId: String?): PlayerDetail {
+    if (data !is HistoryData.Loaded) return PlayerDetail.NotAvailable
+    return HistoryAggregator.buildPlayerDetail(
+        matches = data.matchesBySession.values.flatten(),
+        sessions = data.sessions,
+        normalizedId = normalizedId,
+        activeSessionId = activeSessionId,
+    )
 }
 
 /** Mismatch-aware second-line copy for a session summary. */
