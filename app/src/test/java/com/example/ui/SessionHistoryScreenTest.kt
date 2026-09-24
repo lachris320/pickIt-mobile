@@ -430,7 +430,7 @@ class SessionHistoryScreenTest : RobolectricComposeTest() {
         val vm = SessionViewModel(app()) // real repo -> loads "active" as the active session
         content(vm)
         openAnnPlayerDetail()
-        rule.onNodeWithTag("player_session_active_active").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_active_active", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithTag("player_session_row_active").performClick()
         rule.onNodeWithTag("session_detail").assertIsDisplayed()
         rule.runOnIdle { assertEquals("active", vm.session.value?.id) } // opening detail didn't change active

@@ -37,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -392,14 +391,10 @@ private fun PlayerSessionRow(rec: PlayerSessionRecord, onOpenSession: (String) -
                 color = if (rec.sessionName != null) tokens.textPrimary else tokens.textMuted,
             )
             if (rec.isActive) {
-                // mergeDescendants=true makes this its own semantics boundary so its testTag survives
-                // the parent row's clickable-driven merge (otherwise the row's own testTag wins and
-                // this nested tag becomes unqueryable via the default merged-tree finders).
                 Text(
                     "In progress",
                     modifier = Modifier
-                        .testTag("player_session_active_${rec.sessionId}")
-                        .semantics(mergeDescendants = true) {},
+                        .testTag("player_session_active_${rec.sessionId}"),
                     style = MaterialTheme.typography.labelSmall, color = tokens.textAccent,
                 )
             }
