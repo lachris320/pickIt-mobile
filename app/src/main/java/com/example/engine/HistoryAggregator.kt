@@ -2,8 +2,12 @@ package com.example.engine
 
 import com.example.model.MatchResult
 import com.example.model.Player
+import com.example.model.PlayerDetail
+import com.example.model.PlayerDetailData
 import com.example.model.PlayerRef
+import com.example.model.PlayerSessionRecord
 import com.example.model.RankedPlayer
+import com.example.model.SessionMeta
 import com.example.model.SessionSummary
 import com.example.model.TeamId
 import java.util.Locale
@@ -72,6 +76,77 @@ object HistoryAggregator {
         return RankingEngine.rank(synthetic).map { rp ->
             rp.copy(name = bestSpell[rp.id]?.second ?: rp.name) // restore display spelling post-rank
         }
+    }
+
+    /**
+     * One player's cross-session record, keyed by normalized name (same identity as [rankAllTime]).
+     * The header reuses the player's [rankAllTime] row; the per-session breakdown mirrors rankAllTime's
+     * per-slot attribution over the same valid-winner matches, so sum(records) == header by
+     * construction. Sessions with missing metadata are retained (name/startTime null). Returns
+     * NotAvailable if the id has no valid-winner contribution.
+     */
+    fun buildPlayerDetail(
+        matches: List<MatchResult>,
+        sessions: List<SessionMeta>,
+        normalizedId: String,
+        activeSessionId: String?,
+    ): PlayerDetail {
+        val row = rankAllTime(matches).firstOrNull { it.id == normalizedId }
+            ?: return PlayerDetail.NotAvailable
+
+        data class Acc(var games: Int = 0, var wins: Int = 0, var pf: Int = 0, var pa: Int = 0)
+        val bySession = LinkedHashMap<String, Acc>()
+        for (m in matches) {
+            val winner = m.winner ?: continue
+            val slots = listOf(
+                m.teamA.getOrNull(0) to TeamId.TEAM_A,
+                m.teamA.getOrNull(1) to TeamId.TEAM_A,
+                m.teamB.getOrNull(0) to TeamId.TEAM_B,
+                m.teamB.getOrNull(1) to TeamId.TEAM_B,
+            )
+            for ((rawOrNull, team) in slots) {
+                val raw = rawOrNull ?: continue
+                if (normalize(raw) != normalizedId) continue
+                val acc = bySession.getOrPut(m.sessionId) { Acc() }
+                acc.games += 1
+                if (team == TeamId.TEAM_A) { acc.pf += m.scoreA; acc.pa += m.scoreB }
+                else { acc.pf += m.scoreB; acc.pa += m.scoreA }
+                if (winner == team) acc.wins += 1
+            }
+        }
+
+        val metaById = sessions.associateBy { it.id }
+        val records = bySession.map { (sid, a) ->
+            val meta = metaById[sid]
+            PlayerSessionRecord(
+                sessionId = sid,
+                sessionName = meta?.name,
+                startTime = meta?.startTime,
+                games = a.games,
+                wins = a.wins,
+                losses = a.games - a.wins,
+                pointDiff = a.pf - a.pa,
+                isActive = sid == activeSessionId,
+            )
+        }.sortedWith(
+            compareBy<PlayerSessionRecord> { it.startTime == null }   // non-null first, nulls strictly last
+                .thenByDescending { it.startTime ?: 0L }               // newest-first within known dates
+                .thenBy { it.sessionId }                               // stable fallback
+        )
+
+        return PlayerDetail.Found(
+            PlayerDetailData(
+                id = row.id,
+                displayName = row.name,
+                rank = row.rank,
+                wins = row.wins,
+                losses = row.losses,
+                games = row.wins + row.losses,
+                pointDiff = row.pointDiff,
+                sessionsPlayed = records.size,
+                records = records,
+            )
+        )
     }
 
     /** Semantic per-session summary. Leaders are roster-driven (rank-1 of RankingEngine.rank). */
