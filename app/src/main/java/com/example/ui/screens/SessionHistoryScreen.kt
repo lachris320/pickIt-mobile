@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -25,30 +27,36 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.MatchResult
+import com.example.model.PlayerDetail
+import com.example.model.PlayerSessionRecord
 import com.example.model.RankedPlayer
 import com.example.model.SessionListItem
+import com.example.model.TeamId
 import com.example.ui.theme.LocalPickItTokens
 import com.example.viewmodel.AppScreen
 import com.example.viewmodel.HistoryUiState
 import com.example.viewmodel.HistoryViewModel
 import com.example.viewmodel.SessionDetail
 import com.example.viewmodel.SessionViewModel
-import com.example.model.TeamId
 import com.example.viewmodel.assembleHistoryState
 import com.example.viewmodel.buildSessionDetail
 import com.example.viewmodel.leaderLine
+import com.example.viewmodel.resolvePlayerDetail
 import java.text.DateFormat
 import java.util.Date
 
@@ -57,6 +65,32 @@ private fun formatSessionDate(millis: Long): String =
 
 private fun formatMatchTime(millis: Long): String =
     DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(millis))
+
+/** An in-screen detail route above the History/All-Time tab base. */
+private sealed interface DetailRoute {
+    val key: String
+    data class SessionDetail(val sessionId: String) : DetailRoute {
+        override val key get() = "S:$sessionId"
+    }
+    data class PlayerDetail(val normalizedId: String) : DetailRoute {
+        override val key get() = "P:$normalizedId"
+    }
+}
+
+/** A back-stack entry: the route plus the scroll anchor captured when it was last navigated away from. */
+private data class RouteEntry(val route: DetailRoute, val index: Int, val offset: Int)
+
+private fun decodeRoute(key: String): DetailRoute = when {
+    key.startsWith("S:") -> DetailRoute.SessionDetail(key.removePrefix("S:"))
+    key.startsWith("P:") -> DetailRoute.PlayerDetail(key.removePrefix("P:"))
+    else -> error("unknown route key: $key")
+}
+
+// Persist the whole stack (routes + buried anchors) across Activity recreation.
+private val routeStackSaver = listSaver<List<RouteEntry>, List<Any>>(
+    save = { stack -> stack.map { listOf(it.route.key, it.index, it.offset) } },
+    restore = { saved -> saved.map { e -> RouteEntry(decodeRoute(e[0] as String), e[1] as Int, e[2] as Int) } },
+)
 
 @Composable
 fun SessionHistoryScreen(
@@ -75,12 +109,22 @@ fun SessionHistoryScreen(
     }
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    var selectedSessionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var backStack by rememberSaveable(stateSaver = routeStackSaver) { mutableStateOf(emptyList<RouteEntry>()) }
     val historyListState = rememberLazyListState()
     val allTimeListState = rememberLazyListState()
 
+    // Push from the tab base (no detail scroll to capture; the tab lists keep their hoisted state).
+    fun openFromTabs(route: DetailRoute) { backStack = backStack + RouteEntry(route, 0, 0) }
+    // Push a child from within a detail pane, capturing the current pane's live scroll first.
+    fun openChild(current: LazyListState, child: DetailRoute) {
+        val top = backStack.lastOrNull() ?: return openFromTabs(child)
+        backStack = backStack.dropLast(1) +
+            top.copy(index = current.firstVisibleItemIndex, offset = current.firstVisibleItemScrollOffset) +
+            RouteEntry(child, 0, 0)
+    }
+
     val onBack: () -> Unit = {
-        if (selectedSessionId != null) selectedSessionId = null
+        if (backStack.isNotEmpty()) backStack = backStack.dropLast(1)
         else sessionViewModel.navigateTo(origin)
     }
     BackHandler(onBack = onBack)
@@ -112,10 +156,8 @@ fun SessionHistoryScreen(
                 Text("Couldn't load history.", color = tokens.textMuted, modifier = Modifier.testTag("session_history_error"))
             }
             is HistoryUiState.Content -> {
-                val detailId = selectedSessionId
-                if (detailId != null) {
-                    SessionDetailView(detail = buildSessionDetail(data, detailId))
-                } else {
+                val top = backStack.lastOrNull()
+                if (top == null) {
                     TabRow(selectedTabIndex = selectedTab, containerColor = tokens.canvas) {
                         Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 },
                             modifier = Modifier.testTag("history_tab")) { Text("History", modifier = Modifier.padding(12.dp)) }
@@ -126,10 +168,30 @@ fun SessionHistoryScreen(
                         HistoryList(
                             items = s.pastSessions,
                             listState = historyListState,
-                            onOpen = { selectedSessionId = it },
+                            onOpen = { openFromTabs(DetailRoute.SessionDetail(it)) },
                         )
                     } else {
-                        AllTimeList(rows = s.allTime, listState = allTimeListState)
+                        AllTimeList(
+                            rows = s.allTime,
+                            listState = allTimeListState,
+                            onOpenPlayer = { openFromTabs(DetailRoute.PlayerDetail(it)) },
+                        )
+                    }
+                } else {
+                    key(top.route.key) {
+                        val paneState = rememberSaveable(saver = LazyListState.Saver) {
+                            LazyListState(top.index, top.offset)
+                        }
+                        when (val route = top.route) {
+                            is DetailRoute.SessionDetail ->
+                                SessionDetailView(buildSessionDetail(data, route.sessionId), paneState)
+                            is DetailRoute.PlayerDetail ->
+                                PlayerDetailView(
+                                    detail = resolvePlayerDetail(data, route.normalizedId, session?.id),
+                                    listState = paneState,
+                                    onOpenSession = { sid -> openChild(paneState, DetailRoute.SessionDetail(sid)) },
+                                )
+                        }
                     }
                 }
             }
@@ -181,7 +243,11 @@ private fun HistoryList(
 }
 
 @Composable
-private fun AllTimeList(rows: List<RankedPlayer>, listState: LazyListState) {
+private fun AllTimeList(
+    rows: List<RankedPlayer>,
+    listState: LazyListState,
+    onOpenPlayer: (String) -> Unit,
+) {
     val tokens = LocalPickItTokens.current
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item {
@@ -205,6 +271,7 @@ private fun AllTimeList(rows: List<RankedPlayer>, listState: LazyListState) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("all_time_row_${r.id}")
+                        .clickable { onOpenPlayer(r.id) } // tap -> Player Detail
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -226,7 +293,7 @@ private fun AllTimeList(rows: List<RankedPlayer>, listState: LazyListState) {
 }
 
 @Composable
-private fun SessionDetailView(detail: SessionDetail) {
+private fun SessionDetailView(detail: SessionDetail, listState: LazyListState) {
     val tokens = LocalPickItTokens.current
     when (detail) {
         is SessionDetail.NotAvailable -> CenterBox {
@@ -234,7 +301,7 @@ private fun SessionDetailView(detail: SessionDetail) {
                 modifier = Modifier.testTag("session_detail_unavailable"))
         }
         is SessionDetail.Found -> {
-            LazyColumn(modifier = Modifier.fillMaxSize().testTag("session_detail")) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("session_detail")) {
                 item {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                         Text(detail.meta.name, style = MaterialTheme.typography.titleLarge,
@@ -267,6 +334,82 @@ private fun SessionDetailView(detail: SessionDetail) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlayerDetailView(
+    detail: PlayerDetail,
+    listState: LazyListState,
+    onOpenSession: (String) -> Unit,
+) {
+    val tokens = LocalPickItTokens.current
+    when (detail) {
+        is PlayerDetail.NotAvailable -> CenterBox {
+            Text("Player no longer available.", color = tokens.textMuted,
+                modifier = Modifier.testTag("player_detail_unavailable"))
+        }
+        is PlayerDetail.Found -> {
+            val d = detail.data
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("player_detail")) {
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        Text(d.displayName, style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold, color = tokens.textPrimary)
+                        Text("Records grouped by name across sessions.",
+                            style = MaterialTheme.typography.bodySmall, color = tokens.textMuted)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Rank #${d.rank}  ·  ${d.wins}–${d.losses}",
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                            color = tokens.textPrimary)
+                        Text("${d.games} games · ${d.sessionsPlayed} sessions played · ${formatDiff(d.pointDiff)}",
+                            style = MaterialTheme.typography.bodyMedium, color = tokens.textSecondary)
+                    }
+                }
+                item {
+                    Text("Sessions", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = tokens.textPrimary)
+                }
+                items(d.records, key = { "ps_${it.sessionId}" }) { rec ->
+                    PlayerSessionRow(rec, onOpenSession)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerSessionRow(rec: PlayerSessionRecord, onOpenSession: (String) -> Unit) {
+    val tokens = LocalPickItTokens.current
+    val base = Modifier.fillMaxWidth().testTag("player_session_row_${rec.sessionId}")
+    val rowMod = if (rec.sessionName != null) base.clickable { onOpenSession(rec.sessionId) } else base
+    Column(modifier = rowMod.padding(horizontal = 20.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                rec.sessionName ?: "Session unavailable",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                color = if (rec.sessionName != null) tokens.textPrimary else tokens.textMuted,
+            )
+            if (rec.isActive) {
+                // mergeDescendants=true makes this its own semantics boundary so its testTag survives
+                // the parent row's clickable-driven merge (otherwise the row's own testTag wins and
+                // this nested tag becomes unqueryable via the default merged-tree finders).
+                Text(
+                    "In progress",
+                    modifier = Modifier
+                        .testTag("player_session_active_${rec.sessionId}")
+                        .semantics(mergeDescendants = true) {},
+                    style = MaterialTheme.typography.labelSmall, color = tokens.textAccent,
+                )
+            }
+        }
+        val dateLine = rec.startTime?.let { formatSessionDate(it) }
+        Text(
+            listOfNotNull(dateLine, "${rec.games} games", "${rec.wins}–${rec.losses}", formatDiff(rec.pointDiff))
+                .joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium, color = tokens.textSecondary,
+        )
     }
 }
 

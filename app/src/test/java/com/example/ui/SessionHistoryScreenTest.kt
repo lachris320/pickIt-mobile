@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
@@ -29,6 +30,7 @@ import com.example.viewmodel.HistoryViewModel
 import com.example.viewmodel.SessionViewModel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -148,7 +150,7 @@ class SessionHistoryScreenTest : RobolectricComposeTest() {
         rule.onNodeWithText("Ranked by total wins, then point difference.").assertIsDisplayed()
         rule.onNodeWithText("Grouped by name across sessions. Use consistent, distinct names.").assertIsDisplayed()
         rule.onNodeWithTag("all_time_row_ann").assertIsDisplayed()
-        rule.onNodeWithTag("all_time_row_ann").assertHasNoClickAction()
+        rule.onNodeWithTag("all_time_row_ann").assertHasClickAction()
     }
 
     @Test fun backFromList_navigatesToOrigin() {
@@ -366,5 +368,174 @@ class SessionHistoryScreenTest : RobolectricComposeTest() {
         rule.onNodeWithTag("session_history_back").performClick()
         rule.onNodeWithTag("session_row_h00").assertIsDisplayed()
         rule.onNodeWithTag("session_row_h19").assertDoesNotExist()
+    }
+
+    // ---- Player Detail ----
+
+    private fun openAnnPlayerDetail() {
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithTag("all_time_tab").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("all_time_tab").performClick()
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithTag("all_time_row_ann").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("all_time_row_ann").performClick()
+    }
+
+    @Test fun allTimeRow_opensPlayerDetail_withCaptionAndBreakdown() {
+        seedSession("s1", "Mon", fourPlayers("s1"), wins = 2)
+        val vm = readyVmNoSession()
+        content(vm)
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_detail").assertIsDisplayed()
+        rule.onNodeWithText("Records grouped by name across sessions.").assertIsDisplayed()
+        rule.onNodeWithText("Ann").assertIsDisplayed()                              // header display name
+        rule.onNodeWithText("Rank #1", substring = true).assertIsDisplayed()        // header stat
+        rule.onNodeWithText("sessions played", substring = true).assertIsDisplayed() // sessions-played stat
+        rule.onNodeWithTag("player_session_row_s1").assertIsDisplayed()
+    }
+
+    @Test fun playerDetail_listsAllSessionsForTheName() {
+        seedSession("s1", "Mon", fourPlayers("s1"), wins = 1, startTime = 100)
+        seedSession("s2", "Tue", fourPlayers("s2"), wins = 1, startTime = 200)
+        val vm = readyVmNoSession()
+        content(vm)
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_session_row_s1").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_row_s2").assertIsDisplayed()
+    }
+
+    @Test fun playerDetailRow_opensSessionDetail_backPopsOneLevel() {
+        seedSession("s1", "Mon", fourPlayers("s1"), wins = 2)
+        val vm = readyVmNoSession()
+        content(vm)
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_session_row_s1").performClick()
+        rule.onNodeWithTag("session_detail").assertIsDisplayed()
+        // First Back: session detail -> player detail (pop one level).
+        rule.onNodeWithTag("session_history_back").performClick()
+        rule.onNodeWithTag("player_detail").assertIsDisplayed()
+        rule.onNodeWithTag("session_detail").assertDoesNotExist()
+        // Second Back: player detail -> All-Time tab.
+        rule.onNodeWithTag("session_history_back").performClick()
+        rule.onNodeWithTag("all_time_tab").assertIsDisplayed()
+        // Third Back: tab list -> origin.
+        rule.onNodeWithTag("session_history_back").performClick()
+        rule.runOnIdle { assertEquals(AppScreen.Setup, vm.currentScreen.value) }
+    }
+
+    @Test fun playerDetail_activeSession_taggedInProgress_openDoesNotChangeActive() {
+        seedSession("active", "Live One", fourPlayers("act"), wins = 1)
+        val vm = SessionViewModel(app()) // real repo -> loads "active" as the active session
+        content(vm)
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_session_active_active").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_row_active").performClick()
+        rule.onNodeWithTag("session_detail").assertIsDisplayed()
+        rule.runOnIdle { assertEquals("active", vm.session.value?.id) } // opening detail didn't change active
+    }
+
+    @Test fun playerDetail_missingSessionMetadata_showsSessionUnavailable_nonTappable() {
+        seedSession("s1", "Mon", fourPlayers("s1"), wins = 1)
+        // A qualifying match for Ann in a session with NO SessionEntity (never saveSession'd).
+        runBlocking {
+            val players = fourPlayers("g")
+            val m = Match(
+                id = "ghost-m0", courtId = 1,
+                teamA = Team(TeamId.TEAM_A, players[0], players[1]),
+                teamB = Team(TeamId.TEAM_B, players[2], players[3]),
+                scoreA = 11, scoreB = 3, isCompleted = true, winnerTeamId = TeamId.TEAM_A, endTime = 5L,
+            )
+            repo().recordCompletedMatch("ghost", m)
+        }
+        val vm = readyVmNoSession()
+        content(vm)
+        openAnnPlayerDetail()
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithTag("player_session_row_ghost").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText("Session unavailable").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_row_ghost").assertHasNoClickAction()
+    }
+
+    @Test fun playerDetail_scrollPreserved_afterReturningFromSessionDetail() {
+        // 20 sessions, each with Ann winning; increasing startTime -> newest-first puts p19 at the
+        // TOP and p00 at the BOTTOM (enough rows that the top row is genuinely uncomposed when
+        // scrolled to the bottom on the w411dp-h891dp viewport — mirrors the history-list scroll test).
+        (0..19).forEach { i ->
+            seedSession("p%02d".format(i), "S$i", fourPlayers("p$i"), wins = 1, startTime = i.toLong())
+        }
+        val vm = readyVmNoSession()
+        content(vm)
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_detail").performScrollToNode(hasTestTag("player_session_row_p00"))
+        rule.onNodeWithTag("player_session_row_p00").performClick()
+        rule.onNodeWithTag("session_detail").assertIsDisplayed()
+        rule.onNodeWithTag("session_history_back").performClick()
+        // Back on player detail: scroll must be retained (p00 visible, top row p19 uncomposed).
+        rule.onNodeWithTag("player_session_row_p00").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_row_p19").assertDoesNotExist()
+    }
+
+    @Test fun playerDetail_vanished_showsPlayerNoLongerAvailable() {
+        // A controllable matches flow: emit Ann's match (detail opens), then emit empty -> NotAvailable.
+        val matchesFlow = MutableStateFlow(
+            listOf(
+                CompletedMatchEntity(
+                    matchId = "m1", sessionId = "s1", courtId = 1,
+                    teamAPlayer1 = "Ann", teamAPlayer2 = "Bo", teamBPlayer1 = "Cy", teamBPlayer2 = "Dot",
+                    scoreA = 11, scoreB = 5, winnerTeam = "TEAM_A", startTime = 0, endTime = 1,
+                )
+            )
+        )
+        val dao = object : FakeSessionDao() {
+            override fun getAllSessions(): Flow<List<SessionEntity>> =
+                flowOf(listOf(SessionEntity(id = "s1", name = "Mon", startTime = 100, rotationPolicy = "FOUR_OFF_FOUR_ON", consecutiveGameCap = 0, targetScore = 11, isPaused = false, isCompleted = false)))
+            override fun getAllRoster(): Flow<List<PlayerEntity>> = flowOf(emptyList())
+            override fun getAllMatches(): Flow<List<CompletedMatchEntity>> = matchesFlow
+        }
+        val hvm = HistoryViewModel(app(), repositoryOverride = SessionRepository(dao))
+        val vm = readyVmNoSession()
+        content(vm, hvm)
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_detail").assertIsDisplayed()
+        matchesFlow.value = emptyList() // Ann vanishes from all-time
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithTag("player_detail_unavailable").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("player_detail_unavailable").assertIsDisplayed()
+    }
+
+    @Test fun playerDetail_scrollAndStack_surviveRecreation() {
+        // Exercises the CENTRAL scroll contract across Activity recreation: (a) the visible route's
+        // live scroll restores via LazyListState.Saver, and (b) a buried Player Detail anchor in the
+        // rememberSaveable stack restores after recreation while a Session Detail is on top.
+        (0..19).forEach { i ->
+            seedSession("p%02d".format(i), "S$i", fourPlayers("p$i"), wins = 1, startTime = i.toLong())
+        }
+        val vm = readyVmNoSession()
+        val hvm = HistoryViewModel(app())
+        val restorer = StateRestorationTester(rule)
+        restorer.setContent {
+            MyApplicationTheme { SessionHistoryScreen(vm, hvm, AppScreen.Setup) }
+        }
+        openAnnPlayerDetail()
+        rule.onNodeWithTag("player_detail").performScrollToNode(hasTestTag("player_session_row_p00"))
+        rule.onNodeWithTag("player_session_row_p00").assertIsDisplayed()
+        // (a) Visible-route scroll survives recreation via LazyListState.Saver.
+        restorer.emulateSavedInstanceStateRestore()
+        rule.onNodeWithTag("player_detail").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_row_p00").assertIsDisplayed()
+        rule.onNodeWithTag("player_session_row_p19").assertDoesNotExist()
+        // (b) Push Session Detail (captures the player's buried anchor), recreate, pop back:
+        //     the two-entry stack restores and the buried player position is retained.
+        rule.onNodeWithTag("player_session_row_p00").performClick()
+        rule.onNodeWithTag("session_detail").assertIsDisplayed()
+        restorer.emulateSavedInstanceStateRestore()
+        rule.onNodeWithTag("session_detail").assertIsDisplayed()          // two-entry stack restored
+        rule.onNodeWithTag("session_history_back").performClick()
+        rule.onNodeWithTag("player_session_row_p00").assertIsDisplayed()  // buried anchor restored
+        rule.onNodeWithTag("player_session_row_p19").assertDoesNotExist()
     }
 }
