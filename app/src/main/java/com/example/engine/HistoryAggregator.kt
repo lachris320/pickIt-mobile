@@ -21,6 +21,37 @@ object HistoryAggregator {
     private fun normalize(name: String): String = name.trim().lowercase(Locale.ROOT)
 
     /**
+     * Iterate every valid-winner match's 4 player slots (A1, A2, B1, B2 in fixed order), skipping
+     * null-winner matches and null/blank names, and invoke [action] with that slot's normalized name,
+     * raw name, team, whether that team won, and the slot's points-for/against. Single source of the
+     * All-Time attribution rule, shared by [rankAllTime] and [buildPlayerDetail] so their totals can
+     * never drift.
+     */
+    private inline fun forEachContribution(
+        matches: List<MatchResult>,
+        action: (norm: String, raw: String, team: TeamId, won: Boolean, pf: Int, pa: Int, sessionId: String, endTime: Long, matchId: String, slot: Int) -> Unit,
+    ) {
+        for (m in matches) {
+            val winner = m.winner ?: continue
+            val slots = listOf(
+                Triple(m.teamA.getOrNull(0), TeamId.TEAM_A, 0),
+                Triple(m.teamA.getOrNull(1), TeamId.TEAM_A, 1),
+                Triple(m.teamB.getOrNull(0), TeamId.TEAM_B, 2),
+                Triple(m.teamB.getOrNull(1), TeamId.TEAM_B, 3),
+            )
+            for ((rawOrNull, team, slot) in slots) {
+                val raw = rawOrNull ?: continue
+                val norm = normalize(raw)
+                if (norm.isEmpty()) continue
+                val pf: Int
+                val pa: Int
+                if (team == TeamId.TEAM_A) { pf = m.scoreA; pa = m.scoreB } else { pf = m.scoreB; pa = m.scoreA }
+                action(norm, raw, team, winner == team, pf, pa, m.sessionId, m.endTime, m.matchId, slot)
+            }
+        }
+    }
+
+    /**
      * All-time leaderboard aggregated by normalized name over matches WITH a valid winner
      * (null-winner matches are skipped entirely). Ranks on the normalized name for locale-stable
      * tie ordering, then relabels each row to its display spelling (post-rank, never affects order).
@@ -42,25 +73,13 @@ object HistoryAggregator {
             if (better) bestSpell[norm] = key to raw
         }
 
-        for (m in matches) {
-            val winner = m.winner ?: continue // skip null-winner matches entirely
-            val slots = listOf(
-                Triple(m.teamA.getOrNull(0), TeamId.TEAM_A, 0),
-                Triple(m.teamA.getOrNull(1), TeamId.TEAM_A, 1),
-                Triple(m.teamB.getOrNull(0), TeamId.TEAM_B, 2),
-                Triple(m.teamB.getOrNull(1), TeamId.TEAM_B, 3),
-            )
-            for ((rawNameOrNull, team, slot) in slots) {
-                val raw = rawNameOrNull ?: continue
-                val norm = normalize(raw)
-                if (norm.isEmpty()) continue
-                val acc = accs.getOrPut(norm) { Acc() }
-                acc.games += 1
-                if (team == TeamId.TEAM_A) { acc.pf += m.scoreA; acc.pa += m.scoreB }
-                else { acc.pf += m.scoreB; acc.pa += m.scoreA }
-                if (winner == team) acc.wins += 1
-                considerSpelling(norm, raw, SpellKey(m.endTime, m.matchId, slot))
-            }
+        forEachContribution(matches) { norm, raw, _, won, pf, pa, _, endTime, matchId, slot ->
+            val acc = accs.getOrPut(norm) { Acc() }
+            acc.games += 1
+            acc.pf += pf
+            acc.pa += pa
+            if (won) acc.wins += 1
+            considerSpelling(norm, raw, SpellKey(endTime, matchId, slot))
         }
 
         val synthetic = accs.map { (norm, a) ->
@@ -96,23 +115,13 @@ object HistoryAggregator {
 
         data class Acc(var games: Int = 0, var wins: Int = 0, var pf: Int = 0, var pa: Int = 0)
         val bySession = LinkedHashMap<String, Acc>()
-        for (m in matches) {
-            val winner = m.winner ?: continue
-            val slots = listOf(
-                m.teamA.getOrNull(0) to TeamId.TEAM_A,
-                m.teamA.getOrNull(1) to TeamId.TEAM_A,
-                m.teamB.getOrNull(0) to TeamId.TEAM_B,
-                m.teamB.getOrNull(1) to TeamId.TEAM_B,
-            )
-            for ((rawOrNull, team) in slots) {
-                val raw = rawOrNull ?: continue
-                if (normalize(raw) != normalizedId) continue
-                val acc = bySession.getOrPut(m.sessionId) { Acc() }
-                acc.games += 1
-                if (team == TeamId.TEAM_A) { acc.pf += m.scoreA; acc.pa += m.scoreB }
-                else { acc.pf += m.scoreB; acc.pa += m.scoreA }
-                if (winner == team) acc.wins += 1
-            }
+        forEachContribution(matches) { norm, _, _, won, pf, pa, sessionId, _, _, _ ->
+            if (norm != normalizedId) return@forEachContribution
+            val acc = bySession.getOrPut(sessionId) { Acc() }
+            acc.games += 1
+            acc.pf += pf
+            acc.pa += pa
+            if (won) acc.wins += 1
         }
 
         val metaById = sessions.associateBy { it.id }
